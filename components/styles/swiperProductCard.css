@@ -1,0 +1,12 @@
+.productSliderMudi {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.productSliderMudi .swiper-pagination {
+    bottom: 20px;
+}
+
+.productSliderMudi .swiper-pagination-bullet-active {
+    background-color: #c41230;
+}
