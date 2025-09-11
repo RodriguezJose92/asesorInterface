@@ -79,10 +79,14 @@ class RealtimeService {
             // Create agent first
             const agent = this.createAgent();
 
-            // Create new session with proper configuration
-            this.session = new RealtimeSession(agent);
+            // Create new session with proper configuration INCLUDING options
+            this.session = new RealtimeSession(agent, {
+                apiKey: apiKey,
+                transport: 'websocket',
+                model: 'gpt-4o-realtime-preview-2024-10-01'
+            });
 
-            // Set up event listeners before connecting
+            // Set up event listeners BEFORE connecting
             this.setupEventListeners();
 
             // Connect to OpenAI Realtime API
