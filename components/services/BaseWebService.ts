@@ -11,7 +11,7 @@ class BaseWebServices {
         this.api = axios.create({
             baseURL,
             headers: {
-                'Content-Type': 'application/json', 'x-auth-uuid': '108a9b95-49dc-404a-8357-68d45e0ecd6b',
+                'Content-Type': 'application/json',
                 ...headers,
             },
         });

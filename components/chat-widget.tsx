@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ChatButton } from "./chat-button"
 import { ChatModal } from "./chat-modal"
+import { RealtimeStatus } from "./realtime-status"
 import type { Message, ProductInfo, CarouselInfo } from "@/lib/types"
 import { dataFake } from "@/utils/dataFake"
 import { MultimediaStore } from "@/utils/stores/zustandStore"
@@ -146,6 +147,7 @@ export function ChatWidget() {
         onResumeChat={handleResumeChat}
         onCloseChat={handleCloseChat}
       />
+      <RealtimeStatus />
     </>
   )
 }
