@@ -8,9 +8,10 @@ import { ProductInfo } from "@/lib/types"
 interface ProductCardProps {
   product: ProductInfo
   onMultimediaClick?: () => void
+  onProductSelect?: (product: ProductInfo, action: 'add_to_cart' | 'multimedia') => void
 }
 
-export function ProductCard({ product, onMultimediaClick }: ProductCardProps) {
+export function ProductCard({ product, onMultimediaClick, onProductSelect }: ProductCardProps) {
   const {
     sku,
     name,
@@ -43,18 +44,26 @@ export function ProductCard({ product, onMultimediaClick }: ProductCardProps) {
   };
 
   const addToCatClick = () => {
-    alert('evento conect CMS')
 
-    const payload: any = {
-      // payload
-    };
-
-    /** Evento CMS */
-    window.dispatchEvent(
-      new CustomEvent("mudi:add_to_cart", { detail: payload })
-    );
+    // onProductSelect?.(product, 'add_to_cart');
 
 
+    // const payload: any = {
+    //   product: product
+    // };
+
+    // window.dispatchEvent(
+    //   new CustomEvent("mudi:add_to_cart", { detail: payload })
+    // );
+
+    alert('conectando con sistema CMS ...')
+  }
+
+  const handleMultimediaClick = () => {
+
+    onProductSelect?.(product, 'multimedia');
+
+    onMultimediaClick?.();
   }
 
   return (
@@ -134,7 +143,7 @@ export function ProductCard({ product, onMultimediaClick }: ProductCardProps) {
             Add to Car
             <ExternalLink className="w-3 h-3 ml-1" />
           </Button>
-          <Button className="flex-1 bg-[#c41230] text-white h-10 text-sm" onClick={onMultimediaClick}>
+          <Button className="flex-1 bg-[#c41230] text-white h-10 text-sm" onClick={handleMultimediaClick}>
             Multimedia
             <Play className="w-3 h-3 ml-1" />
           </Button>

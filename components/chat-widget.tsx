@@ -1,29 +1,359 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { ChatButton } from "./chat-button"
 import { ChatModal } from "./chat-modal"
+import { RealtimeStatus } from "./realtime-status"
 import type { Message, ProductInfo, CarouselInfo } from "@/lib/types"
-import { dataFake } from "@/utils/dataFake"
 import { MultimediaStore } from "@/utils/stores/zustandStore"
+import RealtimeService from "./services/RealtimeService"
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
-  const [isTyping, setIsTyping] = useState(false) // Added isTyping state for typing indicator
+  const [isTyping, setIsTyping] = useState(false)
   const [showSurvey, setShowSurvey] = useState(false)
+  
+  // Estados para realtime
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
+  const currentAgentMessageIdRef = useRef<string | null>(null)
 
-  /** ESTO ES SOLO PARA LA PRUEBA  */
-  const detectProductMention = (text: string): ProductInfo[] | null => {
-    const lowerText = text.toLowerCase()
+  // 🎯 Estados para transcripción del usuario EN TIEMPO REAL
+  const [currentUserTranscript, setCurrentUserTranscript] = useState<string>("")
+  const [showUserTranscript, setShowUserTranscript] = useState<boolean>(false)
+  const userTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const currentTranscriptRef = useRef<string>("") // Para evitar closures obsoletos
+  
 
-    if (lowerText.includes("nevera") || lowerText.includes("refrigerador") || lowerText.includes("frigorífico")) {
-      return dataFake
+  const isGreetingCommandRef = useRef<boolean>(false)
+
+
+  const filterJsonFromTranscript = (text: string): string => {
+    try {
+
+      let filtered = text.replace(/\{[\s\S]*?\}/g, '')
+      
+
+      filtered = filtered.replace(/JsonData/gi, '')
+      filtered = filtered.replace(/ProductsCollection/gi, '')
+      filtered = filtered.replace(/TextMessage/gi, '')
+      
+
+      filtered = filtered.replace(/\s+/g, ' ').trim()
+      
+      console.log("🧹 Filtered transcript:", { original: text, filtered })
+      return filtered
+    } catch (error) {
+      console.warn("⚠️ Error filtering JSON:", error)
+      return text
     }
+  }
 
-    return null
-  };
+  const processJsonForMetadata = (text: string) => {
+    try {
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        console.log("📦 Found JSON in transcript:", jsonMatch[0])
+        
+        try {
+          const metadata = JSON.parse(jsonMatch[0])
+          if (metadata.JsonData?.products) {
+            console.log("🎯 Processing products from transcript JSON:", metadata)
+            
+            const productMessage: Message = {
+              id: Date.now().toString(),
+              content: metadata.TextMessage || "Aquí tienes algunos productos:",
+              isUser: false,
+              timestamp: new Date(),
+              type: "product",
+              product: metadata.JsonData.products
+            }
+            
+            setMessages(prev => [...prev, productMessage])
+          }
+        } catch (parseError) {
+          console.warn("Could not parse JSON from transcript:", parseError)
+        }
+      }
+    } catch (error) {
+      console.warn("Error processing JSON for metadata:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen && !isRealtimeConnected) {
+      initializeRealtimeConnection()
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    return () => {
+      if (userTimeoutRef.current) {
+        clearTimeout(userTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const initializeRealtimeConnection = async () => {
+    try {
+      console.log("🔄 Connecting to Realtime API...")
+      
+      await RealtimeService.connect({
+        onConnected: () => {
+          console.log("✅ Connected to Realtime API")
+          setIsRealtimeConnected(true)
+          
+
+          setTimeout(() => {
+            console.log("👋 Triggering agent greeting")
+            
+            if (RealtimeService.getSession()) {
+              try {
+                console.log("🎙️ Sending greeting command to agent")
+                isGreetingCommandRef.current = true
+                RealtimeService.sendMessage("Hola")
+              } catch (error) {
+                console.warn("⚠️ Could not trigger agent greeting:", error)
+              }
+            }
+          }, 1000)
+        },
+        
+        onDisconnected: () => {
+          console.log("🔌 Disconnected from Realtime API")
+          setIsRealtimeConnected(false)
+        },
+        
+        onError: (error) => {
+          console.error("❌ Realtime API Error:", error)
+          setIsRealtimeConnected(false)
+        },
+        
+        onMessage: (message) => {
+          console.log("📨 Received message:", message)
+        },
+        
+        onUserTranscription: (transcript: string, isComplete: boolean) => {
+          console.log(`📝 User: ${isComplete ? 'COMPLETE' : 'TYPING'} - "${transcript}"`) 
+          console.log("🔍 Current states:", {
+            currentUserTranscript,
+            showUserTranscript,
+            transcriptLength: transcript.length,
+            isGreetingCommand: isGreetingCommandRef.current
+          })
+          
+          if (isGreetingCommandRef.current) {
+            console.log("🙈 Filtering greeting command - not showing in chat")
+            isGreetingCommandRef.current = false // Reset flag después del primer filtro
+            return 
+          }
+          
+          if (isComplete) {
+            console.log("✅ Finalizing complete user message")
+            
+            const userMessage: Message = {
+              id: `user-${Date.now()}`,
+              content: transcript,
+              isUser: true,
+              timestamp: new Date(),
+              type: "text",
+            }
+            
+            setMessages(prev => {
+              const lastMessage = prev[prev.length - 1]
+              
+              if (lastMessage && !lastMessage.isUser && currentAgentMessageIdRef.current) {
+                const beforeLast = prev.slice(0, -1)
+                return [...beforeLast, userMessage, lastMessage]
+              } else {
+                return [...prev, userMessage]
+              }
+            })
+            
+
+            setCurrentUserTranscript("")
+            setShowUserTranscript(false)
+            
+            if (userTimeoutRef.current) {
+              clearTimeout(userTimeoutRef.current)
+              userTimeoutRef.current = null
+            }
+          } else {
+            console.log("🎆 Setting live transcription:", transcript)
+            setCurrentUserTranscript(transcript)
+            setShowUserTranscript(true)
+            currentTranscriptRef.current = transcript 
+            
+            console.log("🔄 Updated states to:", {
+              newTranscript: transcript,
+              showFlag: true
+            })
+            
+            // Timeout para auto-finalizar
+            if (userTimeoutRef.current) {
+              clearTimeout(userTimeoutRef.current)
+            }
+            
+            userTimeoutRef.current = setTimeout(() => {
+              console.log("⏰ Timeout triggered - finalizing message")
+              const finalTranscript = currentTranscriptRef.current.trim()
+              if (finalTranscript) {
+                const userMessage: Message = {
+                  id: `user-${Date.now()}`,
+                  content: finalTranscript,
+                  isUser: true,
+                  timestamp: new Date(),
+                  type: "text",
+                }
+                
+                setMessages(prev => [...prev, userMessage])
+                setCurrentUserTranscript("")
+                setShowUserTranscript(false)
+                currentTranscriptRef.current = ""
+              }
+            }, 2000)
+          }
+        },
+        
+        onAgentTranscriptionDelta: (messageId: string, delta: string) => {
+          console.log("🤖 Agent delta (raw):", delta)
+          
+          if (currentAgentMessageIdRef.current !== messageId && showUserTranscript && currentUserTranscript.trim()) {
+            console.log("🎯 Agent starting - inserting user message BEFORE agent")
+            
+            const userMessage: Message = {
+              id: `user-${Date.now()}`,
+              content: currentUserTranscript.trim(),
+              isUser: true,
+              timestamp: new Date(),
+              type: "text",
+            }
+            
+            setMessages(prev => {
+              const withUser = [...prev, userMessage]
+              
+              const filteredDelta = filterJsonFromTranscript(delta)
+              console.log("🎆 Filtered delta:", filteredDelta)
+              
+              const agentMessage: Message = {
+                id: messageId,
+                content: filteredDelta,
+                isUser: false,
+                timestamp: new Date(),
+                type: "text",
+              }
+              
+              return [...withUser, agentMessage]
+            })
+            
+            currentAgentMessageIdRef.current = messageId
+            
+            setCurrentUserTranscript("")
+            setShowUserTranscript(false)
+            currentTranscriptRef.current = ""
+            
+            if (userTimeoutRef.current) {
+              clearTimeout(userTimeoutRef.current)
+              userTimeoutRef.current = null
+            }
+            
+            setIsTyping(false)
+          } else if (currentAgentMessageIdRef.current === messageId) {
+            const filteredDelta = filterJsonFromTranscript(delta) 
+            console.log("🎆 Updating with filtered delta:", filteredDelta)
+            
+            setMessages(prev => prev.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, content: filteredDelta }
+                : msg
+            ))
+          } else if (currentAgentMessageIdRef.current !== messageId) {
+            const filteredDelta = filterJsonFromTranscript(delta)
+            
+            currentAgentMessageIdRef.current = messageId
+            
+            const agentMessage: Message = {
+              id: messageId,
+              content: filteredDelta,
+              isUser: false,
+              timestamp: new Date(),
+              type: "text",
+            }
+            
+            setMessages(prev => [...prev, agentMessage])
+            setIsTyping(false)
+          }
+          
+          // 📦 PROCESAR JSON para metadata (sin mostrarlo en transcripción)
+          processJsonForMetadata(delta)
+        },
+        
+        onAgentTranscriptionComplete: (messageId: string, fullTranscript: string) => {
+          console.log("🤖 Agent complete (raw):", fullTranscript)
+          
+          // 🙏 FILTRAR JSON del transcript completo
+          const filteredTranscript = filterJsonFromTranscript(fullTranscript)
+          console.log("🎆 Agent complete (filtered):", filteredTranscript)
+          
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, content: filteredTranscript }
+              : msg
+          ))
+          
+          // 📦 PROCESAR JSON final para metadata
+          processJsonForMetadata(fullTranscript)
+          
+          currentAgentMessageIdRef.current = null
+        },
+        
+        onMetadata: (metadata) => {
+          console.log("📦 Products:", metadata)
+          
+          // Finalizar mensaje de usuario antes de productos
+          if (showUserTranscript && currentUserTranscript.trim()) {
+            const userMessage: Message = {
+              id: `user-${Date.now()}`,
+              content: currentUserTranscript.trim(),
+              isUser: true,
+              timestamp: new Date(),
+              type: "text",
+            }
+            
+            setMessages(prev => [...prev, userMessage])
+            setCurrentUserTranscript("")
+            setShowUserTranscript(false)
+            
+            if (userTimeoutRef.current) {
+              clearTimeout(userTimeoutRef.current)
+              userTimeoutRef.current = null
+            }
+          }
+          
+          if (metadata.JsonData?.products) {
+            const productMessage: Message = {
+              id: Date.now().toString(),
+              content: metadata.TextMessage || "Aquí tienes algunos productos:",
+              isUser: false,
+              timestamp: new Date(),
+              type: "product",
+              product: metadata.JsonData.products
+            }
+            
+            setMessages(prev => [...prev, productMessage])
+          }
+        }
+      })
+      
+    } catch (error) {
+      console.error("❌ Failed to initialize Realtime connection:", error)
+    }
+  }
+
+  // ❌ ELIMINADO: Lógica hardcodeada que mostraba productos fake automáticamente
+  // Ahora el agente de realtime maneja todas las recomendaciones de productos
 
   /** Aqui falta enlaazar las propiedas que recibo del back */
   const handleMultimediaClick = (productName: string) => {
@@ -48,14 +378,35 @@ export function ChatWidget() {
 
     MultimediaStore.getState().setMultimediaStatus(true)
     setMessages((prev) => [...prev, carouselMessage])
-
   };
 
-  const handleSendMessage = () => {
+  /**
+   * 🎯 NUEVA FUNCIÓN: Manejar selección de productos
+   */
+  const handleProductSelect = async (product: any, action: 'add_to_cart' | 'multimedia') => {
+    if (!isRealtimeConnected || !RealtimeService.getSession()) {
+      console.warn("⚠️ No realtime connection available for product selection");
+      return;
+    }
 
+    try {
+      // Crear mensaje interno para el agente
+      const actionText = action === 'add_to_cart' ? 'agregó al carrito' : 'quiere ver multimedia de';
+      const internalMessage = `El usuario ${actionText} la ${product.name} (${product.sku})`;
+      
+      console.log("🛒 Sending product selection to agent:", internalMessage);
+      
+      // Enviar mensaje interno al agente (no se muestra en el chat como mensaje de usuario)
+      await RealtimeService.sendMessage(internalMessage);
+      
+    } catch (error) {
+      console.error("❌ Error sending product selection to agent:", error);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
-    /** Message Structure */
     const newMessage: Message = {
       id: Date.now().toString(),
       content: inputValue,
@@ -69,36 +420,35 @@ export function ChatWidget() {
     const userInput = inputValue
     setInputValue("")
 
-    setIsTyping(true)
+    if (isRealtimeConnected && RealtimeService.getSession()) {
+      try {
+        console.log("📤 Sending message to realtime agent:", userInput)
+        await RealtimeService.sendMessage(userInput)
+        setIsTyping(true) 
+      } catch (error) {
+        console.error("❌ Error sending message to realtime:", error)
 
-    setTimeout(() => {
-      const productInfo = detectProductMention(userInput)
-
-      if (productInfo) {
-        const productMessage: Message = {
+        const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: "",
-          isUser: false,
-          timestamp: new Date(),
-          type: "product",
-          product: productInfo && productInfo.length > 0 ? productInfo : null
-        }
-        setMessages((prev) => [...prev, productMessage])
-        setIsTyping(false) // Hide typing indicator when showing product
-
-      } else {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          content:
-            "Perfecto, te ayudo a encontrar lo que necesitas. ¿Podrías ser más específico sobre el producto que buscas?",
+          content: "Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo.",
           isUser: false,
           timestamp: new Date(),
           type: "text",
         }
-        setMessages((prev) => [...prev, aiResponse])
-        setIsTyping(false) // Hide typing indicator after AI response
+        setMessages((prev) => [...prev, errorMessage])
+        setIsTyping(false)
       }
-    }, 2000) // Increased delay to 2 seconds to show typing animation longer
+    } else {
+      const noConnectionMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "No hay conexión activa. Por favor espera a que se establezca la conexión.",
+        isUser: false,
+        timestamp: new Date(),
+        type: "text",
+      }
+      setMessages((prev) => [...prev, noConnectionMessage])
+      setIsTyping(false)
+    }
   };
 
   const handleClose = () => {
@@ -109,9 +459,7 @@ export function ChatWidget() {
     setIsOpen(false)
   };
 
-  // Aquí se podría abrir un formulario de encuesta
   const handleStartSurvey = () => {
-
     setShowSurvey(false)
     setIsOpen(false)
   };
@@ -120,12 +468,34 @@ export function ChatWidget() {
     setShowSurvey(false)
   }
 
-  const handleCloseChat = () => {
+  const handleCloseChat = async () => {
     setShowSurvey(false)
     setIsOpen(false)
-    // Limpiar el chat si es necesario
+    
+    // Limpiar timeouts
+    if (userTimeoutRef.current) {
+      clearTimeout(userTimeoutRef.current)
+      userTimeoutRef.current = null
+    }
+    
+    // Desconectar realtime
+    if (isRealtimeConnected) {
+      try {
+        await RealtimeService.disconnect()
+        setIsRealtimeConnected(false)
+      } catch (error) {
+        console.error("❌ Error disconnecting from Realtime API:", error)
+      }
+    }
+    
+    // Limpiar estados
     setMessages([])
     setInputValue("")
+    setCurrentUserTranscript("")
+    setShowUserTranscript(false)
+    currentAgentMessageIdRef.current = null
+    currentTranscriptRef.current = ""
+    isGreetingCommandRef.current = false // Limpiar flag de saludo
   }
 
   return (
@@ -140,12 +510,17 @@ export function ChatWidget() {
         onInputChange={setInputValue}
         onSendMessage={handleSendMessage}
         onMultimediaClick={handleMultimediaClick}
+        onProductSelect={handleProductSelect}
         isTyping={isTyping}
+        currentAgentMessageId={currentAgentMessageIdRef.current}
         showSurvey={showSurvey}
         onStartSurvey={handleStartSurvey}
         onResumeChat={handleResumeChat}
         onCloseChat={handleCloseChat}
+        currentUserTranscript={currentUserTranscript}
+        showUserTranscript={showUserTranscript}
       />
+      <RealtimeStatus />
     </>
   )
 }
