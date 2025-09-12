@@ -24,6 +24,10 @@ interface ChatModalProps {
   onStartSurvey: () => void
   onResumeChat: () => void
   onCloseChat: () => void
+  // 🎯 PROPS LIMPIAS para transcripción
+  currentAgentMessageId?: string | null
+  currentUserTranscript?: string
+  showUserTranscript?: boolean
 }
 
 export function ChatModal({
@@ -40,6 +44,10 @@ export function ChatModal({
   onStartSurvey,
   onResumeChat,
   onCloseChat,
+  // 🎯 PROPS LIMPIAS
+  currentAgentMessageId,
+  currentUserTranscript,
+  showUserTranscript,
 }: ChatModalProps) {
   if (!isOpen) return null
 
@@ -57,7 +65,6 @@ export function ChatModal({
           "animate-in zoom-in-95 duration-300",
           "md:max-w-lg lg:max-w-xl xl:max-w-2xl",
         )}
-
       >
         {/* Chat Header */}
         <div className="grid-row-span-1 relative z-[50]">
@@ -78,6 +85,10 @@ export function ChatModal({
                 messages={messages}
                 onMultimediaClick={onMultimediaClick}
                 isTyping={isTyping}
+                currentAgentMessageId={currentAgentMessageId}
+                // 🎯 PROPS LIMPIAS - Solo lo necesario
+                currentUserTranscript={currentUserTranscript}
+                showUserTranscript={showUserTranscript}
               />
             </div>
           )}
