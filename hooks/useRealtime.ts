@@ -23,6 +23,10 @@ export interface UseRealtimeReturn {
     // Audio handling
     audioData: ArrayBuffer[];
     clearAudio: () => void;
+    
+    // Product metadata handling
+    productMetadata: any | null;
+    clearMetadata: () => void;
 }
 
 export interface RealtimeMessage {
@@ -39,6 +43,7 @@ export function useRealtime(): UseRealtimeReturn {
     const [connectionError, setConnectionError] = useState<string | null>(null);
     const [messages, setMessages] = useState<RealtimeMessage[]>([]);
     const [audioData, setAudioData] = useState<ArrayBuffer[]>([]);
+    const [productMetadata, setProductMetadata] = useState<any | null>(null);
     
     // Refs for cleanup
     const mountedRef = useRef(true);
@@ -102,10 +107,10 @@ export function useRealtime(): UseRealtimeReturn {
                     setMessages(prev => [...prev, newMessage]);
                 },
 
-                onAudioReceived: (audio: ArrayBuffer) => {
+                onMetadata: (metadata: any) => {
                     if (!mountedRef.current) return;
-                    console.log("🔊 Received audio data:", audio.byteLength, "bytes");
-                    setAudioData(prev => [...prev, audio]);
+                    console.log("🛠️ Received product metadata:", metadata);
+                    setProductMetadata(metadata);
                 }
             });
 
@@ -162,7 +167,7 @@ export function useRealtime(): UseRealtimeReturn {
             setMessages(prev => [...prev, userMessage]);
             
             // Send to OpenAI
-            await RealtimeService.sendText(message);
+            await RealtimeService.sendMessage(message);
             
         } catch (error) {
             console.error("❌ Error sending realtime message:", error);
@@ -194,6 +199,13 @@ export function useRealtime(): UseRealtimeReturn {
         setAudioData([]);
     }, []);
 
+    /**
+     * Clears product metadata
+     */
+    const clearMetadata = useCallback(() => {
+        setProductMetadata(null);
+    }, []);
+
     return {
         // State
         isConnected,
@@ -201,6 +213,7 @@ export function useRealtime(): UseRealtimeReturn {
         connectionError,
         messages,
         audioData,
+        productMetadata,
         
         // Actions
         startRealtime,
@@ -208,5 +221,6 @@ export function useRealtime(): UseRealtimeReturn {
         sendMessage,
         clearMessages,
         clearAudio,
+        clearMetadata,
     };
 }

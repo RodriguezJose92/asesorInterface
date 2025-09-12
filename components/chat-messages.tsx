@@ -17,6 +17,7 @@ import { Navigation, Autoplay, Pagination } from "swiper/modules";
 interface ChatMessagesProps {
   messages: Message[]
   onMultimediaClick?: (productName: string) => void
+  onProductSelect?: (product: any, action: 'add_to_cart' | 'multimedia') => void
   isTyping?: boolean
   // 🎯 PROPS para transcripción en tiempo real
   currentAgentMessageId?: string | null
@@ -24,11 +25,12 @@ interface ChatMessagesProps {
   showUserTranscript?: boolean
 }
 
-export function ChatMessages({ 
-  messages, 
-  onMultimediaClick, 
-  isTyping, 
-  currentAgentMessageId, 
+export function ChatMessages({
+  messages,
+  onMultimediaClick,
+  onProductSelect,
+  isTyping,
+  currentAgentMessageId,
   currentUserTranscript,
   showUserTranscript
 }: ChatMessagesProps) {
@@ -79,6 +81,7 @@ export function ChatMessages({
                         <ProductCard
                           product={item}
                           onMultimediaClick={() => onMultimediaClick?.(item.name || "")}
+                          onProductSelect={onProductSelect}
                         />
                       </SwiperSlide>
                     ))}

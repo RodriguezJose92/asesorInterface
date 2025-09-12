@@ -5,7 +5,6 @@ import { ChatButton } from "./chat-button"
 import { ChatModal } from "./chat-modal"
 import { RealtimeStatus } from "./realtime-status"
 import type { Message, ProductInfo, CarouselInfo } from "@/lib/types"
-import { dataFake } from "@/utils/dataFake"
 import { MultimediaStore } from "@/utils/stores/zustandStore"
 import RealtimeService from "./services/RealtimeService"
 
@@ -26,21 +25,21 @@ export function ChatWidget() {
   const userTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentTranscriptRef = useRef<string>("") // Para evitar closures obsoletos
   
-  // 👋 NUEVO: Flag para filtrar comando de saludo interno
+
   const isGreetingCommandRef = useRef<boolean>(false)
 
-  // 🙏 NUEVO: Funciones para filtrar JSON de la transcripción
+
   const filterJsonFromTranscript = (text: string): string => {
     try {
-      // Eliminar cualquier JSON completo del texto
+
       let filtered = text.replace(/\{[\s\S]*?\}/g, '')
       
-      // Eliminar palabras específicas relacionadas con JSON
+
       filtered = filtered.replace(/JsonData/gi, '')
       filtered = filtered.replace(/ProductsCollection/gi, '')
       filtered = filtered.replace(/TextMessage/gi, '')
       
-      // Limpiar espacios extras
+
       filtered = filtered.replace(/\s+/g, ' ').trim()
       
       console.log("🧹 Filtered transcript:", { original: text, filtered })
@@ -53,7 +52,7 @@ export function ChatWidget() {
 
   const processJsonForMetadata = (text: string) => {
     try {
-      // Buscar JSON en el texto
+
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         console.log("📦 Found JSON in transcript:", jsonMatch[0])
@@ -106,23 +105,20 @@ export function ChatWidget() {
           console.log("✅ Connected to Realtime API")
           setIsRealtimeConnected(true)
           
-          // 👋 NUEVO: Saludo automático del agente al conectarse
+
           setTimeout(() => {
             console.log("👋 Triggering agent greeting")
             
-            // 🎆 ESTRATEGIA: Enviar comando interno para saludo
             if (RealtimeService.getSession()) {
               try {
                 console.log("🎙️ Sending greeting command to agent")
-                // Marcar que estamos enviando comando de saludo
                 isGreetingCommandRef.current = true
-                // Usar comando más simple que definitivamente funcione
                 RealtimeService.sendMessage("Hola")
               } catch (error) {
                 console.warn("⚠️ Could not trigger agent greeting:", error)
               }
             }
-          }, 2000) // Delay de 2 segundos para conexión estable
+          }, 1000)
         },
         
         onDisconnected: () => {
@@ -139,7 +135,6 @@ export function ChatWidget() {
           console.log("📨 Received message:", message)
         },
         
-        // 🎯 TRANSCRIPCIÓN DEL USUARIO - EN TIEMPO REAL CON DEBUG Y FILTRO DE SALUDO
         onUserTranscription: (transcript: string, isComplete: boolean) => {
           console.log(`📝 User: ${isComplete ? 'COMPLETE' : 'TYPING'} - "${transcript}"`) 
           console.log("🔍 Current states:", {
@@ -149,11 +144,10 @@ export function ChatWidget() {
             isGreetingCommand: isGreetingCommandRef.current
           })
           
-          // 👋 FILTRAR: No mostrar el PRIMER comando de saludo interno
           if (isGreetingCommandRef.current) {
             console.log("🙈 Filtering greeting command - not showing in chat")
             isGreetingCommandRef.current = false // Reset flag después del primer filtro
-            return // No procesar este mensaje
+            return 
           }
           
           if (isComplete) {
@@ -167,23 +161,18 @@ export function ChatWidget() {
               type: "text",
             }
             
-            // 💥 CRÍTICO: Si el agente está streaming, insertar ANTES del agente
             setMessages(prev => {
               const lastMessage = prev[prev.length - 1]
               
-              // Si el último mensaje es del agente (streaming), insertar usuario ANTES
               if (lastMessage && !lastMessage.isUser && currentAgentMessageIdRef.current) {
-                console.log("🎯 INSERTING user message BEFORE streaming agent")
-                // Insertar antes del último mensaje (agente)
                 const beforeLast = prev.slice(0, -1)
                 return [...beforeLast, userMessage, lastMessage]
               } else {
-                // Agregar normalmente al final
                 return [...prev, userMessage]
               }
             })
             
-            // Limpiar transcripción temporal
+
             setCurrentUserTranscript("")
             setShowUserTranscript(false)
             
@@ -193,10 +182,9 @@ export function ChatWidget() {
             }
           } else {
             console.log("🎆 Setting live transcription:", transcript)
-            // Transcripción parcial - mostrar en tiempo real
             setCurrentUserTranscript(transcript)
             setShowUserTranscript(true)
-            currentTranscriptRef.current = transcript // Actualizar ref
+            currentTranscriptRef.current = transcript 
             
             console.log("🔄 Updated states to:", {
               newTranscript: transcript,
@@ -229,11 +217,9 @@ export function ChatWidget() {
           }
         },
         
-        // 🎯 AGENTE EMPIEZA - INSERTAR USUARIO ANTES DEL AGENTE CON FILTRO JSON
         onAgentTranscriptionDelta: (messageId: string, delta: string) => {
           console.log("🤖 Agent delta (raw):", delta)
           
-          // 🚀 PRIMERA VEZ: Insertar mensaje del usuario ANTES del agente
           if (currentAgentMessageIdRef.current !== messageId && showUserTranscript && currentUserTranscript.trim()) {
             console.log("🎯 Agent starting - inserting user message BEFORE agent")
             
@@ -245,16 +231,12 @@ export function ChatWidget() {
               type: "text",
             }
             
-            // 💥 INSERTAR USUARIO Y LUEGO CREAR AGENTE EN EL ORDEN CORRECTO
             setMessages(prev => {
-              // Agregar mensaje de usuario
               const withUser = [...prev, userMessage]
               
-              // 🙏 FILTRAR JSON del delta antes de crear mensaje del agente
               const filteredDelta = filterJsonFromTranscript(delta)
               console.log("🎆 Filtered delta:", filteredDelta)
               
-              // Luego agregar mensaje del agente (solo texto limpio)
               const agentMessage: Message = {
                 id: messageId,
                 content: filteredDelta,
@@ -266,7 +248,6 @@ export function ChatWidget() {
               return [...withUser, agentMessage]
             })
             
-            // Marcar que ya se creó el agente
             currentAgentMessageIdRef.current = messageId
             
             setCurrentUserTranscript("")
@@ -280,22 +261,17 @@ export function ChatWidget() {
             
             setIsTyping(false)
           } else if (currentAgentMessageIdRef.current === messageId) {
-            // 🙏 FILTRAR JSON del delta antes de actualizar
             const filteredDelta = filterJsonFromTranscript(delta) 
             console.log("🎆 Updating with filtered delta:", filteredDelta)
             
-            // Actualizar contenido del agente existente (solo texto limpio)
             setMessages(prev => prev.map(msg => 
               msg.id === messageId 
                 ? { ...msg, content: filteredDelta }
                 : msg
             ))
           } else if (currentAgentMessageIdRef.current !== messageId) {
-            // 🙏 FILTRAR JSON antes de crear nuevo mensaje
             const filteredDelta = filterJsonFromTranscript(delta)
             
-            // Crear nuevo mensaje del agente (sin usuario pendiente)
-            console.log("🆕 Creating new agent message with filtered content:", filteredDelta)
             currentAgentMessageIdRef.current = messageId
             
             const agentMessage: Message = {
@@ -376,16 +352,8 @@ export function ChatWidget() {
     }
   }
 
-  /** ESTO ES SOLO PARA LA PRUEBA  */
-  const detectProductMention = (text: string): ProductInfo[] | null => {
-    const lowerText = text.toLowerCase()
-
-    if (lowerText.includes("nevera") || lowerText.includes("refrigerador") || lowerText.includes("frigorífico")) {
-      return dataFake
-    }
-
-    return null
-  };
+  // ❌ ELIMINADO: Lógica hardcodeada que mostraba productos fake automáticamente
+  // Ahora el agente de realtime maneja todas las recomendaciones de productos
 
   /** Aqui falta enlaazar las propiedas que recibo del back */
   const handleMultimediaClick = (productName: string) => {
@@ -412,7 +380,31 @@ export function ChatWidget() {
     setMessages((prev) => [...prev, carouselMessage])
   };
 
-  const handleSendMessage = () => {
+  /**
+   * 🎯 NUEVA FUNCIÓN: Manejar selección de productos
+   */
+  const handleProductSelect = async (product: any, action: 'add_to_cart' | 'multimedia') => {
+    if (!isRealtimeConnected || !RealtimeService.getSession()) {
+      console.warn("⚠️ No realtime connection available for product selection");
+      return;
+    }
+
+    try {
+      // Crear mensaje interno para el agente
+      const actionText = action === 'add_to_cart' ? 'agregó al carrito' : 'quiere ver multimedia de';
+      const internalMessage = `El usuario ${actionText} la ${product.name} (${product.sku})`;
+      
+      console.log("🛒 Sending product selection to agent:", internalMessage);
+      
+      // Enviar mensaje interno al agente (no se muestra en el chat como mensaje de usuario)
+      await RealtimeService.sendMessage(internalMessage);
+      
+    } catch (error) {
+      console.error("❌ Error sending product selection to agent:", error);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
     const newMessage: Message = {
@@ -428,36 +420,35 @@ export function ChatWidget() {
     const userInput = inputValue
     setInputValue("")
 
-    setIsTyping(true)
+    if (isRealtimeConnected && RealtimeService.getSession()) {
+      try {
+        console.log("📤 Sending message to realtime agent:", userInput)
+        await RealtimeService.sendMessage(userInput)
+        setIsTyping(true) 
+      } catch (error) {
+        console.error("❌ Error sending message to realtime:", error)
 
-    setTimeout(() => {
-      const productInfo = detectProductMention(userInput)
-
-      if (productInfo) {
-        const productMessage: Message = {
+        const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: "",
-          isUser: false,
-          timestamp: new Date(),
-          type: "product",
-          product: productInfo && productInfo.length > 0 ? productInfo : null
-        }
-        setMessages((prev) => [...prev, productMessage])
-        setIsTyping(false)
-
-      } else {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          content:
-            "Perfecto, te ayudo a encontrar lo que necesitas. ¿Podrías ser más específico sobre el producto que buscas?",
+          content: "Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo.",
           isUser: false,
           timestamp: new Date(),
           type: "text",
         }
-        setMessages((prev) => [...prev, aiResponse])
+        setMessages((prev) => [...prev, errorMessage])
         setIsTyping(false)
       }
-    }, 2000)
+    } else {
+      const noConnectionMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "No hay conexión activa. Por favor espera a que se establezca la conexión.",
+        isUser: false,
+        timestamp: new Date(),
+        type: "text",
+      }
+      setMessages((prev) => [...prev, noConnectionMessage])
+      setIsTyping(false)
+    }
   };
 
   const handleClose = () => {
@@ -519,13 +510,13 @@ export function ChatWidget() {
         onInputChange={setInputValue}
         onSendMessage={handleSendMessage}
         onMultimediaClick={handleMultimediaClick}
+        onProductSelect={handleProductSelect}
         isTyping={isTyping}
         currentAgentMessageId={currentAgentMessageIdRef.current}
         showSurvey={showSurvey}
         onStartSurvey={handleStartSurvey}
         onResumeChat={handleResumeChat}
         onCloseChat={handleCloseChat}
-        // 🎯 TRANSCRIPCIÓN EN TIEMPO REAL DEL USUARIO
         currentUserTranscript={currentUserTranscript}
         showUserTranscript={showUserTranscript}
       />

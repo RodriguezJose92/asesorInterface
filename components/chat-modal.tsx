@@ -19,6 +19,7 @@ interface ChatModalProps {
   onInputChange: (value: string) => void
   onSendMessage: () => void
   onMultimediaClick?: (productName: string) => void
+  onProductSelect?: (product: any, action: 'add_to_cart' | 'multimedia') => void
   isTyping?: boolean
   showSurvey: boolean
   onStartSurvey: () => void
@@ -39,6 +40,7 @@ export function ChatModal({
   onInputChange,
   onSendMessage,
   onMultimediaClick,
+  onProductSelect,
   isTyping,
   showSurvey,
   onStartSurvey,
@@ -84,6 +86,7 @@ export function ChatModal({
               <ChatMessages
                 messages={messages}
                 onMultimediaClick={onMultimediaClick}
+                onProductSelect={onProductSelect}
                 isTyping={isTyping}
                 currentAgentMessageId={currentAgentMessageId}
                 // 🎯 PROPS LIMPIAS - Solo lo necesario

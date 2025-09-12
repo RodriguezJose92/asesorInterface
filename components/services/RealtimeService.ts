@@ -1,5 +1,6 @@
 import { RealtimeSession, RealtimeAgent } from '@openai/agents-realtime';
 import SessionService from './SessionService';
+import productsCatalog from '../../utils/products-catalog.json';
 
 /**
  * RealtimeService - Manages OpenAI Realtime API connections
@@ -60,8 +61,190 @@ class RealtimeService {
      * Creates a basic RealtimeAgent configuration
      */
   private createAgent(): RealtimeAgent<any> {
+    // Generar instrucciones dinámicamente desde el catálogo JSON
+    const generateProductInstructions = () => {
+        let instructions = `# Context - Complete Product Knowledge Base\n`;
+        
+        // Agrupar productos por categoría
+        const categories: { [key: string]: any[] } = {};
+        productsCatalog.products.forEach((product: any) => {
+            if (!categories[product.category]) {
+                categories[product.category] = [];
+            }
+            categories[product.category].push(product);
+        });
+        
+        // Generar secciones por categoría
+        Object.keys(categories).forEach(category => {
+            const categoryName = category.toUpperCase();
+            instructions += `\n## ${categoryName}\n`;
+            
+            categories[category].forEach((product: any, index: number) => {
+                const finalPrice = product.price * (1 - product.discount / 100);
+                instructions += `\n### ${index + 1}. ${product.sku} - ${product.name}\n`;
+                instructions += `- **Price**: $${product.price} (${product.discount}% discount = $${finalPrice.toFixed(2)} final price)\n`;
+                instructions += `- **Rating**: ${product.rate}/5 stars\n`;
+                instructions += `- **Capacity**: ${product.capacity}\n`;
+                instructions += `- **Type**: ${product.type}\n`;
+                instructions += `- **Brand**: ${product.brand}\n`;
+                instructions += `- **Key Features**: ${product.features.join(', ')}\n`;
+                instructions += `- **Description**: ${product.description}\n`;
+                
+                if (product.FAQS && product.FAQS.length > 0) {
+                    instructions += `- **Common Questions**:\n`;
+                    product.FAQS.forEach((faq: any) => {
+                        instructions += `  * ${faq.question} → ${faq.answer}\n`;
+                    });
+                }
+                instructions += `\n`;
+            });
+        });
+        
+        // Agregar matriz de decisión
+        instructions += `\n## DECISION MATRIX - Use This to Choose Products\n`;
+        instructions += `**Available SKUs**: ${productsCatalog.products.map((p: any) => p.sku).join(', ')}\n`;
+        instructions += `**By Budget**: \n`;
+        
+        const sortedByPrice = [...productsCatalog.products].sort((a: any, b: any) => a.price - b.price);
+        sortedByPrice.forEach((product: any) => {
+            const finalPrice = product.price * (1 - product.discount / 100);
+            instructions += `- $${finalPrice.toFixed(2)}: ${product.sku} (${product.name})\n`;
+        });
+        
+        instructions += `\n**By Category**: \n`;
+        Object.keys(categories).forEach(category => {
+            const skus = categories[category].map((p: any) => p.sku).join(', ');
+            instructions += `- ${category}: ${skus}\n`;
+        });
+        
+        return instructions;
+    };
+
     return new RealtimeAgent({
         name: "VoiceAssistant",
+        tools: [
+            {
+                type: "function",
+                name: "send_product_metadata",
+                description: "Send product recommendations based on customer needs. Provide SKUs of products that best match the customer's requirements.",
+                strict: false,
+                needsApproval: async () => false,
+                parameters: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        product_skus: {
+                            type: "array",
+                            description: "Array of product SKUs that best match the customer's needs (maximum 5 products)",
+                            items: {
+                                type: "string",
+                                description: "Product SKU from the available catalog"
+                            },
+                            maxItems: 5
+                        },
+                        reasoning: {
+                            type: "string",
+                            description: "Brief explanation of why these products were selected for the customer"
+                        }
+                    },
+                    required: ["product_skus"]
+                },
+                invoke: async (args: any) => {
+                    console.log("🛠️ Tool send_product_metadata invoked with:", args);
+                    console.log("🛠️ Args type:", typeof args);
+                    console.log("🛠️ Args keys:", Object.keys(args || {}));
+                    
+                    // 🔍 EXTRAER ARGUMENTOS DEL CONTEXTO
+                    let toolArgs = args;
+                    
+                    // Si recibimos un RunContext, extraer los argumentos del último function_call
+                    if (args && args.context && args.context.history) {
+                        console.log("🔍 Detected RunContext, extracting arguments from history");
+                        const history = args.context.history;
+                        const lastFunctionCall = history.reverse().find((item: any) =>
+                            item.type === 'function_call' && item.name === 'send_product_metadata'
+                        );
+                        
+                        if (lastFunctionCall && lastFunctionCall.arguments) {
+                            console.log("🔍 Found function call arguments:", lastFunctionCall.arguments);
+                            try {
+                                toolArgs = JSON.parse(lastFunctionCall.arguments);
+                                console.log("🔍 Parsed tool arguments:", toolArgs);
+                            } catch (parseError) {
+                                console.error("🔍 Error parsing function call arguments:", parseError);
+                            }
+                        }
+                    }
+                    
+                    console.log("🛠️ Final tool args:", toolArgs);
+                    console.log("🛠️ product_skus value:", toolArgs?.product_skus);
+                    console.log("🛠️ product_skus type:", typeof toolArgs?.product_skus);
+                    console.log("🛠️ product_skus is array:", Array.isArray(toolArgs?.product_skus));
+                    
+                    // Obtener la instancia del servicio para acceder a los callbacks
+                    const serviceInstance = RealtimeService.getInstance();
+                    
+                    // Función para buscar productos por SKU
+                    const findProductsBySku = (skus: string[]) => {
+                        const foundProducts = [];
+                        for (const sku of skus) {
+                            const product = productsCatalog.products.find(p => p.sku === sku);
+                            if (product) {
+                                foundProducts.push(product);
+                            } else {
+                                console.warn(`🛠️ Product with SKU ${sku} not found in catalog`);
+                            }
+                        }
+                        return foundProducts;
+                    };
+                    
+                    let products = [];
+                    let reasoning = "";
+                    
+                    // Verificar si tenemos SKUs en los argumentos
+                    if (toolArgs && toolArgs.product_skus && Array.isArray(toolArgs.product_skus) && toolArgs.product_skus.length > 0) {
+                        console.log("🛠️ Processing SKUs:", toolArgs.product_skus);
+                        products = findProductsBySku(toolArgs.product_skus);
+                        reasoning = toolArgs.reasoning || "Productos seleccionados basados en tus necesidades";
+                        console.log(`🛠️ Found ${products.length} products from ${toolArgs.product_skus.length} SKUs`);
+                    } else {
+                        // ❌ NO FALLBACK: El agente DEBE enviar SKUs
+                        console.error("🛠️ ERROR: No SKUs provided by agent. Tool requires product_skus array.");
+                        console.error("🛠️ Agent must call tool with: {\"product_skus\": [\"SKU1\", \"SKU2\"], \"reasoning\": \"explanation\"}");
+                        
+                        return {
+                            success: false,
+                            message: "Error: No product SKUs provided. Agent must specify which products to recommend."
+                        };
+                    }
+                    
+                    console.log("🛠️ Final products to send:", products.map(p => ({ sku: p.sku, name: p.name })));
+                    
+                    // Formatear los datos para que coincidan con lo que espera el componente
+                    const formattedMetadata = {
+                        JsonData: {
+                            jsonType: "ProductsCollection",
+                            products: products
+                        },
+                        TextMessage: reasoning
+                    };
+                    
+                    console.log("🛠️ Sending formatted metadata:", {
+                        jsonType: formattedMetadata.JsonData.jsonType,
+                        productsCount: formattedMetadata.JsonData.products.length,
+                        textMessage: formattedMetadata.TextMessage
+                    });
+                    
+                    // Enviar la metadata a través del callback usando el método público
+                    serviceInstance.triggerMetadataCallback(formattedMetadata);
+                    
+                    return {
+                        success: true,
+                        message: `Product metadata sent successfully for ${products.length} products`
+                    };
+                }
+            }
+        ],
         instructions: `# Role & Objective
 You are a knowledgeable voice assistant for a home appliances product catalog.
 Your goal is to help customers find the perfect appliances by providing personalized recommendations through natural conversation.
@@ -110,15 +293,13 @@ When voicing these terms, use the respective pronunciations:
 - Pronounce "kg" as "kilogramos"
 - Pronounce "cu.ft" as "pies cúbicos"
 
-# Context
-## Available Products
-- SmartWash Pro 500 Front Load Washer: Ultra-efficient 5.0 cu.ft. front load washing machine with AI-powered wash cycles, steam cleaning, and WiFi connectivity. Features 15 customizable programs, Energy Star certification, vibration reduction technology, stainless steel drum, self-cleaning cycle, smart diagnostics, automatic detergent dispensing, and sanitize cycle. Perfect for large families with 10-year motor warranty.
+${generateProductInstructions()}
 
 # Instructions & Rules
 ## CRITICAL DUAL OUTPUT REQUIREMENT
 - ALWAYS provide TWO distinct outputs for every product recommendation:
   1. SPOKEN RESPONSE: Natural, conversational audio (what user hears)
-  2. METADATA: Structured JSON data (what app displays visually)
+  2. PRODUCT METADATA: Use the send_product_metadata tool to send structured data to the UI
 - These outputs must COMPLEMENT each other but be DIFFERENT
 - Audio should be engaging and personal
 - Metadata should be comprehensive and structured
@@ -129,56 +310,106 @@ When voicing these terms, use the respective pronunciations:
 - Use enthusiasm appropriate to the recommendation
 - Keep technical details minimal in speech
 
-## Products list Format (CRITICAL FORMAT REQUIRED)
-When recommending products, you MUST structure your response using this EXACT format:
+## 🚨 CRITICAL: Product Recommendation Process
+**YOU MUST ALWAYS call the send_product_metadata tool when recommending ANY product. This is MANDATORY.**
 
-**SPOKEN:** [Your natural conversational response - this is what will be heard]
-**METADATA:** [JSON structure - this will NOT be spoken]
+### REQUIRED WORKFLOW (NO EXCEPTIONS):
+1. **Listen to customer needs** - Understand what they're looking for
+2. **Choose 1-5 SKUs** - Select from the available catalog above
+3. **Speak your recommendation** - Give natural audio response
+4. **IMMEDIATELY call the tool** - Use send_product_metadata with the exact SKUs
 
-Example:
-**SPOKEN:** ¡Perfecto! Te recomiendo la SmartWash Pro 500, es ideal para familias grandes y tiene tecnología inteligente.
-**METADATA:** {
-    "JsonData": {
-        "jsonType": "ProductsCollection",
-        "products": [
-            {
-                "sku": "SWP500-FL",
-                "name": "SmartWash Pro 500 Front Load Washer",
-                "brand": "SmartWash",
-                "profilePic": "https://example.com/images",
-                "description": "Ultra-efficient 5.0 cu.ft. front load washing machine",
-                "price": 899,
-                "rate": 4.8,
-                "discount": 0,
-                "images": ["https://example.com/image1.jpg"],
-                "Link3D": "https://example.com/3d",
-                "LinkAR": "https://example.com/ar",
-                "LinkVideo": "https://example.com/video",
-                "TechnicalSheet": "https://example.com/specs",
-                "FAQS": [
-                    {
-                        "question": "¿Qué garantía tiene?",
-                        "answer": "10 años en motor"
-                    }
-                ]
-            }
-        ]
-    }
-}
+### 🛠️ TOOL USAGE RULES:
+- **ALWAYS call send_product_metadata after recommending products**
+- **Use EXACT SKUs from the catalog above**
+- **Maximum 5 products per call**
+- **Include reasoning for your selection**
+- **Tool format: {"product_skus": ["SKU1", "SKU2"], "reasoning": "why you chose these"}**
 
-CRITICAL: Only the content after **SPOKEN:** will be heard by the user. NEVER speak JSON, JsonData, ProductsCollection, or any metadata terms.
+## 📋 EXACT EXAMPLES (FOLLOW THESE PATTERNS):
 
-## Metadata Requirements
-- Include ALL fields even if values are null
-- Maintain proper JSON structure
-- TextMessage should differ from spoken response
-- Support multiple products in array
-- Ensure numeric fields are actual numbers, not strings
+### Example 1: Single Washer
+User: "Necesito una lavadora para mi apartamento pequeño"
+**Step 1 - Speak:** "¡Perfecto! Te recomiendo la EcoWash 200, es compacta y perfecta para apartamentos."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["ECO200-FL"], "reasoning": "Lavadora compacta ideal para apartamentos pequeños"})
 
-## Example Interaction
-User: "Necesito una lavadora"
-Audio Response: "¡Perfecto! Te recomiendo la SmartWash Pro 500, es ideal para familias grandes y tiene tecnología inteligente que facilita todo."
-Metadata: [Structured JSON with complete product details]
+### Example 2: Multiple Washers
+User: "Quiero una lavadora pero no sé cuál elegir"
+**Step 1 - Speak:** "Te muestro las mejores opciones de lavadoras según diferentes necesidades."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["SWP500-FL", "SWP300-TL", "ECO200-FL"], "reasoning": "Variedad de lavadoras para diferentes necesidades y presupuestos"})
+
+### Example 3: Refrigerator
+User: "Necesito un refrigerador grande"
+**Step 1 - Speak:** "Excelente, te recomiendo el CoolMax Pro 800, tiene gran capacidad y dispensador."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["RF800-SS"], "reasoning": "Refrigerador grande con características premium"})
+
+### 🚨 MANDATORY RULES:
+- **NEVER recommend products without calling the tool**
+- **ONLY use these exact SKUs: ECO200-FL, SWP300-TL, SWP500-FL, RF600-WH, RF800-SS**
+- **Tool call is REQUIRED after every product recommendation**
+- **Format must be exact: {"product_skus": ["SKU"], "reasoning": "explanation"}**
+
+## 🛒 PRODUCT SELECTION RESPONSES
+When you receive internal messages about product selection (like "El usuario agregó al carrito la SmartWash Pro 500"), respond with SHORT, enthusiastic confirmations:
+
+### Examples:
+- "¡Excelente elección! La SmartWash Pro 500 es perfecta para ti. Aquí puedes ver más información multimedia."
+- "¡Genial! La EcoWash 200 es ideal. Te va a encantar su eficiencia."
+- "¡Buena decisión! El CoolMax Pro 800 tiene gran capacidad. Disfruta explorando sus características."
+
+### Rules for Selection Responses:
+- Keep responses SHORT (1-2 sentences maximum)
+- Be enthusiastic and positive
+- Mention the product name
+- Reference multimedia/more information when appropriate
+- DO NOT call the product tool again for selection confirmations
+- Sound natural and conversational
+
+### If Missing Product Details:
+If you don't have complete product information, use these defaults:
+- sku: Generate based on product name (e.g., "SWP500-FL")
+- profilePic: "https://example.com/images/[product-name].jpg"
+- images: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+- Link3D: "https://example.com/3d/[product-name]"
+- LinkAR: "https://example.com/ar/[product-name]"
+- LinkVideo: "https://example.com/video/[product-name]"
+- TechnicalSheet: "https://example.com/specs/[product-name].pdf"
+- price: Reasonable estimate based on product type
+- rate: 4.5 (default good rating)
+- discount: 0 or reasonable percentage
+
+## COMPLETE Example Tool Call
+When recommending the SmartWash Pro 500, call:
+send_product_metadata({
+    "jsonType": "ProductsCollection",
+    "products": [
+        {
+            "sku": "SWP500-FL",
+            "name": "SmartWash Pro 500 Front Load Washer",
+            "brand": "SmartWash",
+            "profilePic": "https://example.com/images/smartwash-pro-500.jpg",
+            "description": "Ultra-efficient 5.0 cu.ft. front load washing machine with AI-powered wash cycles",
+            "price": 899,
+            "rate": 4.8,
+            "discount": 0,
+            "images": ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
+            "Link3D": "https://example.com/3d/smartwash-pro-500",
+            "LinkAR": "https://example.com/ar/smartwash-pro-500",
+            "LinkVideo": "https://example.com/video/smartwash-pro-500",
+            "TechnicalSheet": "https://example.com/specs/smartwash-pro-500.pdf",
+            "FAQS": [
+                {
+                    "question": "¿Qué garantía tiene?",
+                    "answer": "10 años en motor y 2 años en partes"
+                },
+                {
+                    "question": "¿Consume mucha energía?",
+                    "answer": "No, tiene certificación Energy Star para máxima eficiencia"
+                }
+            ]
+        }
+    ]
+})
 
 ## Conversation Guidelines
 - Ask clarifying questions when needed
@@ -210,7 +441,24 @@ Metadata: [Structured JSON with complete product details]
 - Stay focused on appliance recommendations
 - Do not provide advice outside product expertise
 - IF customer has technical support needs: Acknowledge and suggest contacting technical support
-- Maintain professional boundaries throughout interaction`,
+- Maintain professional boundaries throughout interaction
+
+# IMPORTANT REMINDERS
+- NEVER include JSON data in your spoken responses
+- NEVER mention "metadata", "JsonData", "ProductsCollection" in speech
+- ALWAYS use the send_product_metadata tool for product data
+- Keep spoken responses natural and conversational
+- The tool will handle sending structured data to the UI automatically
+
+# 🚨 CRITICAL FINAL REMINDER 🚨
+EVERY TIME you recommend a product, you MUST:
+1. Speak naturally about the product
+2. Call send_product_metadata tool with complete data
+3. NEVER skip the tool call - it's required for the UI to show product cards
+
+If you recommend a product but don't call the tool, the user won't see the product information visually, which breaks the experience.
+
+ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
         handoffDescription: "Voice assistant for product recommendations"
     });
 }
@@ -289,7 +537,7 @@ Metadata: [Structured JSON with complete product details]
                 console.log("✅ Successfully connected to OpenAI Realtime API");
             } catch (connectError) {
                 console.error("🚫 Connection error details:", connectError);
-                throw new Error(`Connection failed: ${connectError.message}`);
+                throw new Error(`Connection failed: ${connectError instanceof Error ? connectError.message : String(connectError)}`);
             }
 
         } catch (error) {
@@ -357,6 +605,24 @@ Metadata: [Structured JSON with complete product details]
     }
 
     /**
+     * Interrupts the agent if it's currently speaking
+     */
+    interrupt(): void {
+        if (!this.session || !this.isConnected) {
+            console.warn("⚠️ Cannot interrupt: Not connected to Realtime API");
+            return;
+        }
+
+        try {
+            console.log("🛑 Interrupting agent...");
+            this.session.interrupt();
+            console.log("✅ Agent interrupted successfully");
+        } catch (error) {
+            console.error("❌ Error interrupting agent:", error);
+        }
+    }
+
+    /**
      * Sends a text message through the realtime session
      * @param message - The message to send
      */
@@ -368,9 +634,10 @@ Metadata: [Structured JSON with complete product details]
         try {
             console.log("📤 Sending message:", message);
             
+            // 🛑 INTERRUPT AGENT BEFORE SENDING NEW MESSAGE
+            this.interrupt();
+            
             this.session.sendMessage(message);
-
-
             
         } catch (error) {
             console.error("❌ Error sending message:", error);
@@ -554,37 +821,81 @@ Metadata: [Structured JSON with complete product details]
                     console.log("🤖 RESPONSE DONE (REAL):", event);
                 });
                 
-                // Metadata/productos (mejorado para capturar JSON)
+                // 🛠️ EVENTOS DE TOOL CALLS
+                session.addListener('response.function_call_arguments.delta', (event: any) => {
+                    console.log("🛠️ TOOL CALL ARGUMENTS DELTA:", event);
+                });
+                
+                session.addListener('response.function_call_arguments.done', (event: any) => {
+                    console.log("🛠️ TOOL CALL ARGUMENTS DONE:", event);
+                });
+                
+                session.addListener('response.output_item.added', (event: any) => {
+                    console.log("🛠️ OUTPUT ITEM ADDED:", event);
+                    
+                    // Verificar si es una llamada a función
+                    if (event.item && event.item.type === 'function_call') {
+                        console.log("🛠️ Function call detected:", event.item);
+                        
+                        // Si es el tool send_product_metadata, procesarlo
+                        if (event.item.name === 'send_product_metadata') {
+                            console.log("🛠️ send_product_metadata tool call detected");
+                        }
+                    }
+                });
+                
+                // 🛠️ LISTENER ESPECÍFICO PARA TOOL CALLS COMPLETADOS
+                session.addListener('conversation.item.created', (event: any) => {
+                    console.log("🛠️ CONVERSATION ITEM CREATED:", event);
+                    
+                    if (event.item && event.item.type === 'function_call') {
+                        console.log("🛠️ Function call item created:", event.item);
+                        console.log("🛠️ Function call name:", event.item.name);
+                        console.log("🛠️ Function call arguments (raw):", event.item.arguments);
+                        console.log("🛠️ Arguments type:", typeof event.item.arguments);
+                        
+                        if (event.item.name === 'send_product_metadata' && event.item.arguments) {
+                            try {
+                                let args;
+                                if (typeof event.item.arguments === 'string') {
+                                    console.log("🛠️ Parsing string arguments:", event.item.arguments);
+                                    args = JSON.parse(event.item.arguments);
+                                } else {
+                                    console.log("🛠️ Using object arguments directly");
+                                    args = event.item.arguments;
+                                }
+                                
+                                console.log("🛠️ Parsed args:", args);
+                                console.log("🛠️ Args keys:", Object.keys(args || {}));
+                                
+                                // Formatear los datos correctamente
+                                const formattedMetadata = {
+                                    JsonData: {
+                                        jsonType: args.jsonType || "ProductsCollection",
+                                        products: args.products || []
+                                    },
+                                    TextMessage: "Aquí tienes algunos productos que podrían interesarte:"
+                                };
+                                
+                                console.log("🛠️ Sending formatted metadata from event listener:", formattedMetadata);
+                                
+                                // Ejecutar el callback de metadata directamente
+                                if (this.connectionCallbacks.onMetadata) {
+                                    this.connectionCallbacks.onMetadata(formattedMetadata);
+                                }
+                            } catch (error) {
+                                console.error("🛠️ Error processing tool arguments:", error);
+                                console.error("🛠️ Raw arguments that failed:", event.item.arguments);
+                            }
+                        }
+                    }
+                });
+                
+                // Conversation item completed (sin parsing de metadata)
                 session.addListener('conversation.item.completed', (event: any) => {
                     console.log("✅ CONVERSATION ITEM COMPLETED:", event);
                     
-                    // Buscar metadata en la respuesta
-                    if (event.item && event.item.content) {
-                        try {
-                            const content = Array.isArray(event.item.content) ? event.item.content[0] : event.item.content;
-                            if (content && content.text) {
-                                // Intentar parsear JSON metadata
-                                const text = content.text;
-                                if (text.includes('JsonData') || text.includes('TextMessage')) {
-                                    const jsonMatch = text.match(/\{[\s\S]*\}/);
-                                    if (jsonMatch) {
-                                        try {
-                                            const metadata = JSON.parse(jsonMatch[0]);
-                                            if (this.connectionCallbacks.onMetadata) {
-                                                this.connectionCallbacks.onMetadata(metadata);
-                                            }
-                                        } catch (parseError) {
-                                            console.warn("Could not parse metadata JSON:", parseError);
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (error) {
-                            console.warn("Error processing metadata:", error);
-                        }
-                    }
-
-                    // También triggear el callback general (mantener compatibilidad)
+                    // Solo triggear el callback general (mantener compatibilidad)
                     if (this.connectionCallbacks.onMessage) {
                         this.connectionCallbacks.onMessage(event);
                     }
@@ -698,37 +1009,11 @@ Metadata: [Structured JSON with complete product details]
                     delete this.agentTranscriptBuffer[responseId];
                 });
 
-                // Metadata/productos (mejorado para capturar JSON)
+                // Conversation item completed (sin parsing de metadata)
                 session.addListener('conversation.item.completed', (event: any) => {
                     console.log("✅ Conversation item completed:", event);
                     
-                    // Buscar metadata en la respuesta
-                    if (event.item && event.item.content) {
-                        try {
-                            const content = Array.isArray(event.item.content) ? event.item.content[0] : event.item.content;
-                            if (content && content.text) {
-                                // Intentar parsear JSON metadata
-                                const text = content.text;
-                                if (text.includes('JsonData') || text.includes('TextMessage')) {
-                                    const jsonMatch = text.match(/\{[\s\S]*\}/);
-                                    if (jsonMatch) {
-                                        try {
-                                            const metadata = JSON.parse(jsonMatch[0]);
-                                            if (this.connectionCallbacks.onMetadata) {
-                                                this.connectionCallbacks.onMetadata(metadata);
-                                            }
-                                        } catch (parseError) {
-                                            console.warn("Could not parse metadata JSON:", parseError);
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (error) {
-                            console.warn("Error processing metadata:", error);
-                        }
-                    }
-
-                    // También triggear el callback general (mantener compatibilidad)
+                    // Solo triggear el callback general (mantener compatibilidad)
                     if (this.connectionCallbacks.onMessage) {
                         this.connectionCallbacks.onMessage(event);
                     }
@@ -790,7 +1075,52 @@ Metadata: [Structured JSON with complete product details]
                     delete this.agentTranscriptBuffer[responseId];
                 });
 
-                console.log("📝 Event listeners setup with 'on' method WITH TRANSCRIPTION");
+                // 🛠️ TOOL EVENTS CON 'on' METHOD
+                session.on('conversation.item.created', (event: any) => {
+                    console.log("🛠️ CONVERSATION ITEM CREATED (ON):", event);
+                    
+                    if (event.item && event.item.type === 'function_call') {
+                        console.log("🛠️ Function call item created (ON):", event.item);
+                        console.log("🛠️ Function call name (ON):", event.item.name);
+                        console.log("🛠️ Function call arguments (ON, raw):", event.item.arguments);
+                        
+                        if (event.item.name === 'send_product_metadata' && event.item.arguments) {
+                            try {
+                                let args;
+                                if (typeof event.item.arguments === 'string') {
+                                    console.log("🛠️ Parsing string arguments (ON):", event.item.arguments);
+                                    args = JSON.parse(event.item.arguments);
+                                } else {
+                                    console.log("🛠️ Using object arguments directly (ON)");
+                                    args = event.item.arguments;
+                                }
+                                
+                                console.log("🛠️ Parsed args (ON):", args);
+                                
+                                // Formatear los datos correctamente
+                                const formattedMetadata = {
+                                    JsonData: {
+                                        jsonType: args.jsonType || "ProductsCollection",
+                                        products: args.products || []
+                                    },
+                                    TextMessage: "Aquí tienes algunos productos que podrían interesarte:"
+                                };
+                                
+                                console.log("🛠️ Sending formatted metadata from ON event listener:", formattedMetadata);
+                                
+                                // Ejecutar el callback de metadata directamente
+                                if (this.connectionCallbacks.onMetadata) {
+                                    this.connectionCallbacks.onMetadata(formattedMetadata);
+                                }
+                            } catch (error) {
+                                console.error("🛠️ Error processing tool arguments (ON):", error);
+                                console.error("🛠️ Raw arguments that failed (ON):", event.item.arguments);
+                            }
+                        }
+                    }
+                });
+
+                console.log("📝 Event listeners setup with 'on' method WITH TRANSCRIPTION AND TOOLS");
             } else {
                 console.log("📝 Event listeners setup - no compatible method found");
             }
@@ -820,6 +1150,24 @@ Metadata: [Structured JSON with complete product details]
      */
     getSession(): RealtimeSession<any> | null {
         return this.session;
+    }
+
+    /**
+     * Triggers the metadata callback (used by tools)
+     * @param metadata - The metadata to send
+     */
+    triggerMetadataCallback(metadata: any): void {
+        if (this.connectionCallbacks.onMetadata) {
+            this.connectionCallbacks.onMetadata(metadata);
+        }
+    }
+
+    /**
+     * Static method to interrupt the agent from anywhere in the app
+     */
+    static interrupt(): void {
+        const instance = RealtimeService.getInstance();
+        instance.interrupt();
     }
 }
 

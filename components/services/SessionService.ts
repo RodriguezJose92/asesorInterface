@@ -8,10 +8,12 @@ import { EnvironmentStore } from "@/utils/stores/EnvironmentStore";
  */
 class SessionService extends BaseWebServices {
     private static instance: SessionService;
-    private readonly baseUrl: string = "http://localhost:5052";
+    private baseUrl: string;
 
     constructor() {
-        super("http://localhost:5052");
+        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://mudi.voiceia.mudi.com.co/RT";
+        super(baseUrl);
+        this.baseUrl = baseUrl;
     }
 
     /**
