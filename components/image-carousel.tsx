@@ -49,55 +49,95 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
       if (cardRef.current) {
         gsap.fromTo(
           cardRef.current,
-          { opacity: 0, y: 40 },
-          { opacity: 1, y: 0, duration: 0.7 }
+          { opacity: 0, },
+          { opacity: 1, duration: 0.7 }
         );
       }
     }, 200)
 
   }, []);
 
+  useEffect(() => {
+    activeView == "AR" && window.open('https://viewer.mudi.com.co/v1/ar/?id=398&sku=KRMF706ESS_MEX', '_BLANK')
+  }, [activeView])
+
   return (
     <Card
       ref={cardRef}
-      className={`w-full  overflow-hidden py-[0px] gap-[0px] absolute top-[${marginTop}] left-[0px] h-[75%] z-[2] flex flex-col items-center justify-center opacity-0 border-[transparent] bg-[#f5f5f5]`}
+      className={`w-full  overflow-hidden absolute left-[0px] h-[80%] z-[2] flex flex-col items-center justify-center opacity-0 border-[transparent] bg-[#f5f5f5]`}
       id="multiMediaPopUp"
+      style={{ top: marginTop }}
     >
 
       {/* Image Container */}
-      <div className=" py-[0px] height-[100%] ">
+      {
+        activeView == 'IMÁGENES' &&
+        <div className=" py-[0px] height-[100%] ">
 
-        {/** Aqui irir el swiper JS para las iamgenes  */}
-        <div className="aspect-square flex items-center justify-center ">
-          <img
-            src={images[currentIndex] || "/placeholder.svg"}
-            alt={`${productName} - imagen ${currentIndex + 1}`}
-            className="size-[90%] object-contain rounded-2xl"
-          />
+          {/** Aqui irir el swiper JS para las iamgenes  */}
+          <div className="aspect-square flex items-center justify-center ">
+            <img
+              src={images[currentIndex] || "/placeholder.svg"}
+              alt={`${productName} - imagen ${currentIndex + 1}`}
+              className="size-[90%] object-contain rounded-2xl"
+            />
+          </div>
+
+          {/* Navigation Arrows */}
+          {images.length > 1 && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={prevImage}
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/80 hover:bg-white shadow-sm"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={nextImage}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/80 hover:bg-white shadow-sm"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+
         </div>
+      }
 
-        {/* Navigation Arrows */}
-        {images.length > 1 && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/80 hover:bg-white shadow-sm"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/80 hover:bg-white shadow-sm"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </>
-        )}
-      </div>
+      {/* 3D Container */}
+      {
+        activeView == '3D' &&
+        <div className=" py-[0px] height-[100%] ">
+
+          <iframe className="w-[100%] h-[60dvh]" src="https://viewer.mudi.com.co/v1/web/?id=398&sku=KRMF706ESS_MEX" />
+
+        </div>
+      }
+
+      {/* Video Container */}
+      {
+        activeView == 'VIDEO' &&
+        <div className=" py-[0px] height-[100%] ">
+
+          <iframe className="w-[100%] h-[60dvh] rounded-2xl" src="https://www.youtube.com/embed/RYjb4ACUxUU?si=IAFyKV8gK324bnCr" />
+
+        </div>
+      }
+
+
+      {/* AR Container */}
+      {
+        activeView == 'AR' &&
+        <div className=" py-[0px] height-[100%] ">
+
+          <div className="w-[100%] h-[60dvh] rounded-2xl" />
+
+        </div>
+      }
 
       {/* Image Counter and Dots */}
       <div className="px-4 py-[10px] space-y-3">

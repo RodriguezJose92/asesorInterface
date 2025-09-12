@@ -45,16 +45,18 @@ export function ProductCard({ product, onMultimediaClick, onProductSelect }: Pro
 
   const addToCatClick = () => {
 
-    onProductSelect?.(product, 'add_to_cart');
-    
+    // onProductSelect?.(product, 'add_to_cart');
 
-    const payload: any = {
-      product: product
-    };
 
-    window.dispatchEvent(
-      new CustomEvent("mudi:add_to_cart", { detail: payload })
-    );
+    // const payload: any = {
+    //   product: product
+    // };
+
+    // window.dispatchEvent(
+    //   new CustomEvent("mudi:add_to_cart", { detail: payload })
+    // );
+
+    alert('conectando con sistema CMS ...')
   }
 
   const handleMultimediaClick = () => {

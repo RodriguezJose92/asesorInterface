@@ -6,6 +6,8 @@ import { Send, Mic, MicOff, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRealtime } from "@/hooks/useRealtime"
 import { toast } from "sonner"
+import microphone from "@/utils/call/Microphone"
+
 
 interface ChatInputProps {
   value: string
@@ -30,6 +32,12 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     audioData
   } = useRealtime();
 
+  const verifyStatusMic = () => {
+    const micStatus = microphone.statusMic
+    alert(!micStatus)
+    microphone.handlerStatusdMic(!micStatus)
+  }
+
   // Handle connection errors
   useEffect(() => {
     if (connectionError) {
@@ -42,7 +50,7 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
   useEffect(() => {
     if (realtimeMessages.length > 0) {
       const latestMessage = realtimeMessages[realtimeMessages.length - 1];
-      
+
       if (latestMessage.type === 'response') {
         toast.success("🤖 AI Response received");
       } else if (latestMessage.type === 'error') {
@@ -57,6 +65,7 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
       toast.success(`🔊 Audio received: ${audioData.length} chunks`);
     }
   }, [audioData]);
+
 
   /**
    * Handles starting/stopping the realtime session
@@ -121,7 +130,7 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
 
   const hasText = value.trim().length > 0;
   const isLoading = isRealtimeConnecting;
-  const showRealtimeIndicator = isRealtimeConnected || isRealtimeActive;
+  const [showRealtimeIndicator, setShowRealtimeIndicator] = useState<boolean>(false)
 
   return (
     <div className="px-[10px] py-[2px] rounded-[10px] shadow-[0_0_3px_#c41230] w-[95%] mx-auto mb-[10px]">
@@ -131,16 +140,15 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={`${showRealtimeIndicator ? "Realtime Active - Type or speak..." : "Escribe tu pregunta"}`}
-            className="bg-[transparent] border-[transparent] text-gray-800 placeholder:text-gray-500 inputUser focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
+            className="bg-[transparent] border-[transparent] text-gray-800 placeholder:text-gray-500 inputUser focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 border-0 w-[90%]"
             onKeyPress={(e) => e.key === "Enter" && handleEnhancedSend()}
           />
           <div className={`absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 w-[max-content] overflow-auto ${hasText ? '' : 'w-[0px]'}`}>
             <Button
               onClick={handleEnhancedSend}
               size="icon"
-              className={`h-8 w-8 rounded-full ${hasText ? "flex" : "hidden"} ${
-                isRealtimeConnected ? "bg-green-600 hover:bg-green-700" : "bg-[#c41230] hover:bg-[#c41230]"
-              }`}
+              className={`h-8 w-8 rounded-full ${hasText ? "flex" : "hidden"} ${isRealtimeConnected ? "bg-green-600 hover:bg-green-700" : "bg-[#c41230] hover:bg-[#c41230]"
+                }`}
             >
               <Send className="w-3 h-3" />
             </Button>
@@ -155,7 +163,7 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
               className={`h-8 w-8 transition-all duration-200 rounded-full border-[#c41230] text-[#c41230] hover:bg-[transparent] 
               ${showRealtimeIndicator ? "bg-green-100 border-green-500 text-green-600" : "bg-[transparent] border-[1px]"}
               ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={handleRealtimeToggle}
+              onClick={verifyStatusMic}
               title={isRealtimeConnected ? "Stop Realtime Session" : "Start Realtime Session"}
             >
               {isLoading ? (
@@ -166,8 +174,8 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
                 <Mic className={`w-4 h-4`} />
               )}
             </Button>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               disabled={isLoading}
               className={`transition-all duration-200 rounded-full text-white px-[12px]
               ${showRealtimeIndicator ? "h-8 w-[auto] bg-green-600 hover:bg-green-700" : "h-8 w-8 bg-[#c41230] hover:bg-[#c41230]"}
@@ -175,14 +183,14 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
               onClick={handleRealtimeToggle}
               title={isRealtimeConnected ? "End Realtime Session" : "Start Realtime Session"}
             >
-              <div className="flex items-center gap-1 ">
+              <div className={`flex items-center gap-1`}>
                 <div className="flex gap-0.5 items-center justify-center">
                   <div className={`w-[2px] h-3 bg-white rounded ${showRealtimeIndicator ? "animate-pulse" : ""}`}></div>
                   <div className={`w-[2px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-75" : ""}`}></div>
                   <div className={`w-[2px] h-4 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-150" : ""}`}></div>
                   <div className={`w-[2px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-75" : ""}`}></div>
                 </div>
-                <span className={`text-xs font-medium ${showRealtimeIndicator ? "flex" : "hidden"}`}>
+                <span className={`text-xs font-medium  ${showRealtimeIndicator ? "flex " : "hidden"}`}>
                   {isRealtimeConnected ? "End" : "Starting..."}
                 </span>
               </div>
@@ -190,18 +198,17 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
           </>
         )}
       </div>
-      
+
       {/* Realtime Status Indicator */}
       {showRealtimeIndicator && (
         <div className="mt-2 text-xs text-center">
-          <span className={`px-2 py-1 rounded-full text-white ${
-            isRealtimeConnected ? "bg-green-500" : "bg-yellow-500"
-          }`}>
+          <span className={`px-2 py-1 rounded-full text-white ${isRealtimeConnected ? "bg-green-500" : "bg-yellow-500"
+            }`}>
             {isRealtimeConnected ? "🎤 Realtime Active" : "🔄 Connecting..."}
           </span>
         </div>
       )}
-      
+
       {/* Messages count indicator */}
       {realtimeMessages.length > 0 && (
         <div className="mt-1 text-xs text-gray-500 text-center">

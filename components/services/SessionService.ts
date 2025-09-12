@@ -1,6 +1,5 @@
 import { BackendResponse } from "@/types/type";
 import BaseWebServices from "./BaseWebService";
-import { EnvironmentStore } from "@/utils/stores/EnvironmentStore";
 
 /**
  * SessionService - Handles session token generation for OpenAI Realtime API
@@ -35,7 +34,7 @@ class SessionService extends BaseWebServices {
     async getSessionToken(): Promise<string> {
         try {
             console.log("🔄 Requesting new session token...");
-            
+
             const response = await this.get<BackendResponse<{ value: string }>>("/session");
             console.log("🔑 Session token response:", response.value);
             if (!response?.value) {
@@ -44,11 +43,11 @@ class SessionService extends BaseWebServices {
 
             console.log("✅ Session token retrieved successfully");
             return response.value;
-            
+
         } catch (error) {
             console.error("❌ Error retrieving session token:", error);
             throw new Error(
-                error instanceof Error 
+                error instanceof Error
                     ? `Failed to get session token: ${error.message}`
                     : "Failed to get session token: Unknown error"
             );

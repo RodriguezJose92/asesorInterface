@@ -26,12 +26,12 @@ class RealtimeService {
 
     // 🆕 Para tracking de transcripciones del agente
     private agentTranscriptBuffer: { [key: string]: string } = {};
-    
+
     // 🆕 Para evitar duplicados rápidos
     private lastDeltaTime: number = 0;
     private deltaThrottle: number = 100; // 100ms entre deltas
     private deltaAccumulator: { [key: string]: string } = {}; // Acumular deltas
-    
+
     // 🚀 NUEVO: Buffer para manejar orden correcto de mensajes
     private pendingUserTranscription: string | null = null;
     private pendingAgentMessages: Array<{
@@ -60,192 +60,192 @@ class RealtimeService {
     /**
      * Creates a basic RealtimeAgent configuration
      */
-  private createAgent(): RealtimeAgent<any> {
-    // Generar instrucciones dinámicamente desde el catálogo JSON
-    const generateProductInstructions = () => {
-        let instructions = `# Context - Complete Product Knowledge Base\n`;
-        
-        // Agrupar productos por categoría
-        const categories: { [key: string]: any[] } = {};
-        productsCatalog.products.forEach((product: any) => {
-            if (!categories[product.category]) {
-                categories[product.category] = [];
-            }
-            categories[product.category].push(product);
-        });
-        
-        // Generar secciones por categoría
-        Object.keys(categories).forEach(category => {
-            const categoryName = category.toUpperCase();
-            instructions += `\n## ${categoryName}\n`;
-            
-            categories[category].forEach((product: any, index: number) => {
-                const finalPrice = product.price * (1 - product.discount / 100);
-                instructions += `\n### ${index + 1}. ${product.sku} - ${product.name}\n`;
-                instructions += `- **Price**: $${product.price} (${product.discount}% discount = $${finalPrice.toFixed(2)} final price)\n`;
-                instructions += `- **Rating**: ${product.rate}/5 stars\n`;
-                instructions += `- **Capacity**: ${product.capacity}\n`;
-                instructions += `- **Type**: ${product.type}\n`;
-                instructions += `- **Brand**: ${product.brand}\n`;
-                instructions += `- **Key Features**: ${product.features.join(', ')}\n`;
-                instructions += `- **Description**: ${product.description}\n`;
-                
-                if (product.FAQS && product.FAQS.length > 0) {
-                    instructions += `- **Common Questions**:\n`;
-                    product.FAQS.forEach((faq: any) => {
-                        instructions += `  * ${faq.question} → ${faq.answer}\n`;
-                    });
-                }
-                instructions += `\n`;
-            });
-        });
-        
-        // Agregar matriz de decisión
-        instructions += `\n## DECISION MATRIX - Use This to Choose Products\n`;
-        instructions += `**Available SKUs**: ${productsCatalog.products.map((p: any) => p.sku).join(', ')}\n`;
-        instructions += `**By Budget**: \n`;
-        
-        const sortedByPrice = [...productsCatalog.products].sort((a: any, b: any) => a.price - b.price);
-        sortedByPrice.forEach((product: any) => {
-            const finalPrice = product.price * (1 - product.discount / 100);
-            instructions += `- $${finalPrice.toFixed(2)}: ${product.sku} (${product.name})\n`;
-        });
-        
-        instructions += `\n**By Category**: \n`;
-        Object.keys(categories).forEach(category => {
-            const skus = categories[category].map((p: any) => p.sku).join(', ');
-            instructions += `- ${category}: ${skus}\n`;
-        });
-        
-        return instructions;
-    };
+    private createAgent(): RealtimeAgent<any> {
+        // Generar instrucciones dinámicamente desde el catálogo JSON
+        const generateProductInstructions = () => {
+            let instructions = `# Context - Complete Product Knowledge Base\n`;
 
-    return new RealtimeAgent({
-        name: "VoiceAssistant",
-        tools: [
-            {
-                type: "function",
-                name: "send_product_metadata",
-                description: "Send product recommendations based on customer needs. Provide SKUs of products that best match the customer's requirements.",
-                strict: false,
-                needsApproval: async () => false,
-                parameters: {
-                    type: "object",
-                    additionalProperties: false,
-                    properties: {
-                        product_skus: {
-                            type: "array",
-                            description: "Array of product SKUs that best match the customer's needs (maximum 5 products)",
-                            items: {
-                                type: "string",
-                                description: "Product SKU from the available catalog"
-                            },
-                            maxItems: 5
-                        },
-                        reasoning: {
-                            type: "string",
-                            description: "Brief explanation of why these products were selected for the customer"
-                        }
-                    },
-                    required: ["product_skus"]
-                },
-                invoke: async (args: any) => {
-                    console.log("🛠️ Tool send_product_metadata invoked with:", args);
-                    console.log("🛠️ Args type:", typeof args);
-                    console.log("🛠️ Args keys:", Object.keys(args || {}));
-                    
-                    // 🔍 EXTRAER ARGUMENTOS DEL CONTEXTO
-                    let toolArgs = args;
-                    
-                    // Si recibimos un RunContext, extraer los argumentos del último function_call
-                    if (args && args.context && args.context.history) {
-                        console.log("🔍 Detected RunContext, extracting arguments from history");
-                        const history = args.context.history;
-                        const lastFunctionCall = history.reverse().find((item: any) =>
-                            item.type === 'function_call' && item.name === 'send_product_metadata'
-                        );
-                        
-                        if (lastFunctionCall && lastFunctionCall.arguments) {
-                            console.log("🔍 Found function call arguments:", lastFunctionCall.arguments);
-                            try {
-                                toolArgs = JSON.parse(lastFunctionCall.arguments);
-                                console.log("🔍 Parsed tool arguments:", toolArgs);
-                            } catch (parseError) {
-                                console.error("🔍 Error parsing function call arguments:", parseError);
-                            }
-                        }
+            // Agrupar productos por categoría
+            const categories: { [key: string]: any[] } = {};
+            productsCatalog.products.forEach((product: any) => {
+                if (!categories[product.category]) {
+                    categories[product.category] = [];
+                }
+                categories[product.category].push(product);
+            });
+
+            // Generar secciones por categoría
+            Object.keys(categories).forEach(category => {
+                const categoryName = category.toUpperCase();
+                instructions += `\n## ${categoryName}\n`;
+
+                categories[category].forEach((product: any, index: number) => {
+                    const finalPrice = product.price * (1 - product.discount / 100);
+                    instructions += `\n### ${index + 1}. ${product.sku} - ${product.name}\n`;
+                    instructions += `- **Price**: $${product.price} (${product.discount}% discount = $${finalPrice.toFixed(2)} final price)\n`;
+                    instructions += `- **Rating**: ${product.rate}/5 stars\n`;
+                    instructions += `- **Capacity**: ${product.capacity}\n`;
+                    instructions += `- **Type**: ${product.type}\n`;
+                    instructions += `- **Brand**: ${product.brand}\n`;
+                    instructions += `- **Key Features**: ${product.features.join(', ')}\n`;
+                    instructions += `- **Description**: ${product.description}\n`;
+
+                    if (product.FAQS && product.FAQS.length > 0) {
+                        instructions += `- **Common Questions**:\n`;
+                        product.FAQS.forEach((faq: any) => {
+                            instructions += `  * ${faq.question} → ${faq.answer}\n`;
+                        });
                     }
-                    
-                    console.log("🛠️ Final tool args:", toolArgs);
-                    console.log("🛠️ product_skus value:", toolArgs?.product_skus);
-                    console.log("🛠️ product_skus type:", typeof toolArgs?.product_skus);
-                    console.log("🛠️ product_skus is array:", Array.isArray(toolArgs?.product_skus));
-                    
-                    // Obtener la instancia del servicio para acceder a los callbacks
-                    const serviceInstance = RealtimeService.getInstance();
-                    
-                    // Función para buscar productos por SKU
-                    const findProductsBySku = (skus: string[]) => {
-                        const foundProducts = [];
-                        for (const sku of skus) {
-                            const product = productsCatalog.products.find(p => p.sku === sku);
-                            if (product) {
-                                foundProducts.push(product);
-                            } else {
-                                console.warn(`🛠️ Product with SKU ${sku} not found in catalog`);
+                    instructions += `\n`;
+                });
+            });
+
+            // Agregar matriz de decisión
+            instructions += `\n## DECISION MATRIX - Use This to Choose Products\n`;
+            instructions += `**Available SKUs**: ${productsCatalog.products.map((p: any) => p.sku).join(', ')}\n`;
+            instructions += `**By Budget**: \n`;
+
+            const sortedByPrice = [...productsCatalog.products].sort((a: any, b: any) => a.price - b.price);
+            sortedByPrice.forEach((product: any) => {
+                const finalPrice = product.price * (1 - product.discount / 100);
+                instructions += `- $${finalPrice.toFixed(2)}: ${product.sku} (${product.name})\n`;
+            });
+
+            instructions += `\n**By Category**: \n`;
+            Object.keys(categories).forEach(category => {
+                const skus = categories[category].map((p: any) => p.sku).join(', ');
+                instructions += `- ${category}: ${skus}\n`;
+            });
+
+            return instructions;
+        };
+
+        return new RealtimeAgent({
+            name: "VoiceAssistant",
+            tools: [
+                {
+                    type: "function",
+                    name: "send_product_metadata",
+                    description: "Send product recommendations based on customer needs. Provide SKUs of products that best match the customer's requirements.",
+                    strict: false,
+                    needsApproval: async () => false,
+                    parameters: {
+                        type: "object",
+                        additionalProperties: false,
+                        properties: {
+                            product_skus: {
+                                type: "array",
+                                description: "Array of product SKUs that best match the customer's needs (maximum 5 products)",
+                                items: {
+                                    type: "string",
+                                    description: "Product SKU from the available catalog"
+                                },
+                                maxItems: 5
+                            },
+                            reasoning: {
+                                type: "string",
+                                description: "Brief explanation of why these products were selected for the customer"
+                            }
+                        },
+                        required: ["product_skus"]
+                    },
+                    invoke: async (args: any) => {
+                        console.log("🛠️ Tool send_product_metadata invoked with:", args);
+                        console.log("🛠️ Args type:", typeof args);
+                        console.log("🛠️ Args keys:", Object.keys(args || {}));
+
+                        // 🔍 EXTRAER ARGUMENTOS DEL CONTEXTO
+                        let toolArgs = args;
+
+                        // Si recibimos un RunContext, extraer los argumentos del último function_call
+                        if (args && args.context && args.context.history) {
+                            console.log("🔍 Detected RunContext, extracting arguments from history");
+                            const history = args.context.history;
+                            const lastFunctionCall = history.reverse().find((item: any) =>
+                                item.type === 'function_call' && item.name === 'send_product_metadata'
+                            );
+
+                            if (lastFunctionCall && lastFunctionCall.arguments) {
+                                console.log("🔍 Found function call arguments:", lastFunctionCall.arguments);
+                                try {
+                                    toolArgs = JSON.parse(lastFunctionCall.arguments);
+                                    console.log("🔍 Parsed tool arguments:", toolArgs);
+                                } catch (parseError) {
+                                    console.error("🔍 Error parsing function call arguments:", parseError);
+                                }
                             }
                         }
-                        return foundProducts;
-                    };
-                    
-                    let products = [];
-                    let reasoning = "";
-                    
-                    // Verificar si tenemos SKUs en los argumentos
-                    if (toolArgs && toolArgs.product_skus && Array.isArray(toolArgs.product_skus) && toolArgs.product_skus.length > 0) {
-                        console.log("🛠️ Processing SKUs:", toolArgs.product_skus);
-                        products = findProductsBySku(toolArgs.product_skus);
-                        reasoning = toolArgs.reasoning || "Productos seleccionados basados en tus necesidades";
-                        console.log(`🛠️ Found ${products.length} products from ${toolArgs.product_skus.length} SKUs`);
-                    } else {
-                        // ❌ NO FALLBACK: El agente DEBE enviar SKUs
-                        console.error("🛠️ ERROR: No SKUs provided by agent. Tool requires product_skus array.");
-                        console.error("🛠️ Agent must call tool with: {\"product_skus\": [\"SKU1\", \"SKU2\"], \"reasoning\": \"explanation\"}");
-                        
+
+                        console.log("🛠️ Final tool args:", toolArgs);
+                        console.log("🛠️ product_skus value:", toolArgs?.product_skus);
+                        console.log("🛠️ product_skus type:", typeof toolArgs?.product_skus);
+                        console.log("🛠️ product_skus is array:", Array.isArray(toolArgs?.product_skus));
+
+                        // Obtener la instancia del servicio para acceder a los callbacks
+                        const serviceInstance = RealtimeService.getInstance();
+
+                        // Función para buscar productos por SKU
+                        const findProductsBySku = (skus: string[]) => {
+                            const foundProducts = [];
+                            for (const sku of skus) {
+                                const product = productsCatalog.products.find(p => p.sku === sku);
+                                if (product) {
+                                    foundProducts.push(product);
+                                } else {
+                                    console.warn(`🛠️ Product with SKU ${sku} not found in catalog`);
+                                }
+                            }
+                            return foundProducts;
+                        };
+
+                        let products = [];
+                        let reasoning = "";
+
+                        // Verificar si tenemos SKUs en los argumentos
+                        if (toolArgs && toolArgs.product_skus && Array.isArray(toolArgs.product_skus) && toolArgs.product_skus.length > 0) {
+                            console.log("🛠️ Processing SKUs:", toolArgs.product_skus);
+                            products = findProductsBySku(toolArgs.product_skus);
+                            reasoning = toolArgs.reasoning || "Productos seleccionados basados en tus necesidades";
+                            console.log(`🛠️ Found ${products.length} products from ${toolArgs.product_skus.length} SKUs`);
+                        } else {
+                            // ❌ NO FALLBACK: El agente DEBE enviar SKUs
+                            console.error("🛠️ ERROR: No SKUs provided by agent. Tool requires product_skus array.");
+                            console.error("🛠️ Agent must call tool with: {\"product_skus\": [\"SKU1\", \"SKU2\"], \"reasoning\": \"explanation\"}");
+
+                            return {
+                                success: false,
+                                message: "Error: No product SKUs provided. Agent must specify which products to recommend."
+                            };
+                        }
+
+                        console.log("🛠️ Final products to send:", products.map(p => ({ sku: p.sku, name: p.name })));
+
+                        // Formatear los datos para que coincidan con lo que espera el componente
+                        const formattedMetadata = {
+                            JsonData: {
+                                jsonType: "ProductsCollection",
+                                products: products
+                            },
+                            TextMessage: reasoning
+                        };
+
+                        console.log("🛠️ Sending formatted metadata:", {
+                            jsonType: formattedMetadata.JsonData.jsonType,
+                            productsCount: formattedMetadata.JsonData.products.length,
+                            textMessage: formattedMetadata.TextMessage
+                        });
+
+                        // Enviar la metadata a través del callback usando el método público
+                        serviceInstance.triggerMetadataCallback(formattedMetadata);
+
                         return {
-                            success: false,
-                            message: "Error: No product SKUs provided. Agent must specify which products to recommend."
+                            success: true,
+                            message: `Product metadata sent successfully for ${products.length} products`
                         };
                     }
-                    
-                    console.log("🛠️ Final products to send:", products.map(p => ({ sku: p.sku, name: p.name })));
-                    
-                    // Formatear los datos para que coincidan con lo que espera el componente
-                    const formattedMetadata = {
-                        JsonData: {
-                            jsonType: "ProductsCollection",
-                            products: products
-                        },
-                        TextMessage: reasoning
-                    };
-                    
-                    console.log("🛠️ Sending formatted metadata:", {
-                        jsonType: formattedMetadata.JsonData.jsonType,
-                        productsCount: formattedMetadata.JsonData.products.length,
-                        textMessage: formattedMetadata.TextMessage
-                    });
-                    
-                    // Enviar la metadata a través del callback usando el método público
-                    serviceInstance.triggerMetadataCallback(formattedMetadata);
-                    
-                    return {
-                        success: true,
-                        message: `Product metadata sent successfully for ${products.length} products`
-                    };
                 }
-            }
-        ],
-        instructions: `# Role & Objective
+            ],
+            instructions: `# Role & Objective
 You are a knowledgeable voice assistant for a home appliances product catalog.
 Your goal is to help customers find the perfect appliances by providing personalized recommendations through natural conversation.
 Success means delivering both engaging spoken responses AND structured product data for visual display.
@@ -459,9 +459,9 @@ EVERY TIME you recommend a product, you MUST:
 If you recommend a product but don't call the tool, the user won't see the product information visually, which breaks the experience.
 
 ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
-        handoffDescription: "Voice assistant for product recommendations"
-    });
-}
+            handoffDescription: "Voice assistant for product recommendations"
+        });
+    }
 
     /**
      * Establishes connection to OpenAI Realtime API
@@ -514,44 +514,47 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
 
             // Connect to OpenAI Realtime API
             console.log("🔄 Connecting to OpenAI Realtime API...");
-            
+
             try {
                 await this.session.connect({
                     apiKey: apiKey,
                 });
-                
+
                 // 🆕 HABILITAR TRANSCRIPCIÓN DE AUDIO
                 console.log("🎤 Enabling audio transcription...");
-                
+
                 // 🔍 DEBUG: Ver qué métodos están disponibles
                 console.log("🔍 Available session methods:", Object.getOwnPropertyNames(this.session));
                 console.log("🔍 Session prototype methods:", Object.getOwnPropertyNames(Object.getPrototypeOf(this.session)));
-                
+
                 if (typeof (this.session as any).inputAudioTranscriptionEnable === 'function') {
                     await (this.session as any).inputAudioTranscriptionEnable();
                     console.log("✅ Audio transcription enabled");
                 } else {
                     console.warn("⚠️ inputAudioTranscriptionEnable method not found");
                 }
-                
+
                 console.log("✅ Successfully connected to OpenAI Realtime API");
-            } catch (connectError) {
+            }
+
+            catch (connectError) {
                 console.error("🚫 Connection error details:", connectError);
                 throw new Error(`Connection failed: ${connectError instanceof Error ? connectError.message : String(connectError)}`);
             }
 
+
         } catch (error) {
             this.isConnecting = false;
             this.isConnected = false;
-            
+
             const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
             console.error("❌ Failed to connect to OpenAI Realtime API:", errorMessage);
-            
+
             // Trigger error callback
             if (this.connectionCallbacks.onError) {
                 this.connectionCallbacks.onError(error instanceof Error ? error : new Error(errorMessage));
             }
-            
+
             throw error;
         }
     }
@@ -567,7 +570,7 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
 
         try {
             console.log("🔄 Disconnecting from OpenAI Realtime API...");
-            
+
             // Close the session using the close method
             if (typeof this.session.close === 'function') {
                 await this.session.close();
@@ -575,7 +578,7 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 // Force cleanup if no close method
                 console.warn("⚠️ No close method found on session, cleaning up manually");
             }
-            
+
             this.session = null;
             this.isConnected = false;
             this.isConnecting = false;
@@ -585,7 +588,7 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
             this.lastDeltaTime = 0;
 
             console.log("✅ Successfully disconnected from OpenAI Realtime API");
-            
+
             // Trigger disconnected callback
             if (this.connectionCallbacks.onDisconnected) {
                 this.connectionCallbacks.onDisconnected();
@@ -633,12 +636,12 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
 
         try {
             console.log("📤 Sending message:", message);
-            
+
             // 🛑 INTERRUPT AGENT BEFORE SENDING NEW MESSAGE
             this.interrupt();
-            
+
             this.session.sendMessage(message);
-            
+
         } catch (error) {
             console.error("❌ Error sending message:", error);
             throw error;
@@ -655,21 +658,20 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
         try {
             // Use type assertion to work with the session events
             const session = this.session as any;
-            
+
             // Manejar eventos del transport si existe
             if (session.transport && typeof session.transport.on === 'function') {
                 session.transport.on('*', (event: any) => {
-                    if(event.type=='session.created')
-                    {
+                    if (event.type == 'session.created') {
                         console.log("✅ Transport session created:", event);
                         this.isConnected = true;
                         this.isConnecting = false;
-                        
+
                         // Trigger connected callback
                         if (this.connectionCallbacks.onConnected) {
                             this.connectionCallbacks.onConnected();
                         }
-                    } 
+                    }
                     // 🆕 CAPTURAR EVENTOS DE TRANSCRIPCIÓN EN EL TRANSPORT
                     else if (event.type === 'conversation.item.input_audio_transcription.delta') {
                         console.log("📝 USER TRANSCRIPTION DELTA (TRANSPORT):", event);
@@ -685,81 +687,78 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                     }
                     else if (event.type === 'response.output_audio_transcript.delta') {
                         console.log("🤖 AGENT TRANSCRIPT DELTA (TRANSPORT):", event.delta);
-                        
+
                         const responseId = event.response_id || 'default';
-                        
+
                         // 🆕 ACUMULAR DELTAS PARA ENVIAR EN LOTES
                         if (!this.deltaAccumulator[responseId]) {
                             this.deltaAccumulator[responseId] = '';
                         }
                         this.deltaAccumulator[responseId] += event.delta;
-                        
+
                         // Buffer para el transcript completo
                         if (!this.agentTranscriptBuffer[responseId]) {
                             this.agentTranscriptBuffer[responseId] = '';
                         }
                         this.agentTranscriptBuffer[responseId] += event.delta;
-                        
+
                         // 🆕 ENVIAR DELTAS ACUMULADOS CON THROTTLE
                         const now = Date.now();
                         if (now - this.lastDeltaTime >= this.deltaThrottle) {
                             this.lastDeltaTime = now;
-                            
+
                             if (this.connectionCallbacks.onAgentTranscriptionDelta) {
                                 // 🆕 ENVIAR TODO EL TEXTO ACUMULADO HASTA AHORA
                                 this.connectionCallbacks.onAgentTranscriptionDelta(responseId, this.agentTranscriptBuffer[responseId]);
                             }
-                            
+
                             // NO limpiar acumulador, solo resetear para el próximo lote
                             this.deltaAccumulator[responseId] = '';
                         }
                     }
                     else if (event.type === 'response.output_audio_transcript.done') {
                         console.log("🤖 AGENT TRANSCRIPT DONE (TRANSPORT):", event);
-                        
+
                         const responseId = event.response_id || 'default';
                         const fullTranscript = event.transcript || this.agentTranscriptBuffer[responseId] || '';
-                        
+
                         // 🆕 ENVIAR ÚLTIMOS DELTAS ACUMULADOS ANTES DE COMPLETAR
                         if (this.deltaAccumulator[responseId] && this.connectionCallbacks.onAgentTranscriptionDelta) {
                             // Enviar el texto completo final
                             this.connectionCallbacks.onAgentTranscriptionDelta(responseId, this.agentTranscriptBuffer[responseId]);
                         }
-                        
+
                         if (this.connectionCallbacks.onAgentTranscriptionComplete) {
                             this.connectionCallbacks.onAgentTranscriptionComplete(responseId, fullTranscript);
                         }
-                        
+
                         // Limpiar buffers
                         delete this.agentTranscriptBuffer[responseId];
                         delete this.deltaAccumulator[responseId];
                     }
-                    else 
-                    {
+                    else {
                         console.log("Transport session event:", event.type);
                     }
                 });
-
-                
             }
-            
+
             if (typeof session.addListener === 'function') {
                 // 🔍 USAR LOS EVENTOS REALES QUE ESTÁN LLEGANDO
                 console.log("🔍 Setting up REAL transcription events...");
-                
+
                 // 🎤 EVENTOS DEL USUARIO (REALES)
                 session.addListener('input_audio_buffer.speech_started', (event: any) => {
                     console.log("🎤 USER STARTED SPEAKING (REAL):", event);
                 });
-                
+
                 session.addListener('input_audio_buffer.speech_stopped', (event: any) => {
                     console.log("🎤 USER STOPPED SPEAKING (REAL):", event);
                 });
-                
+
                 session.addListener('input_audio_buffer.committed', (event: any) => {
                     console.log("🎤 AUDIO BUFFER COMMITTED (REAL):", event);
                 });
-                
+
                 // 📝 TRANSCRIPCIÓN DEL USUARIO EN TIEMPO REAL (CORRECTO)
                 session.addListener('conversation.item.input_audio_transcription.delta', (event: any) => {
                     console.log("📝 USER TRANSCRIPTION DELTA (REAL):", event);
@@ -767,93 +766,93 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                         this.connectionCallbacks.onUserTranscription(event.delta, false);
                     }
                 });
-                
+
                 session.addListener('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 USER TRANSCRIPTION COMPLETED (REAL):", event);
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
                 });
-                
+
                 // 🤖 EVENTOS DEL AGENTE (REALES)
                 session.addListener('response.created', (event: any) => {
                     console.log("🤖 RESPONSE CREATED (REAL):", event);
                 });
-                
+
                 session.addListener('response.output_item.added', (event: any) => {
                     console.log("🤖 OUTPUT ITEM ADDED (REAL):", event);
                 });
-                
+
                 session.addListener('response.content_part.added', (event: any) => {
                     console.log("🤖 CONTENT PART ADDED (REAL):", event);
                 });
-                
+
                 // 🤖 TRANSCRIPCIÓN DEL AGENTE EN TIEMPO REAL (CORRECTO)
                 session.addListener('response.output_audio_transcript.delta', (event: any) => {
                     console.log("🤖 AGENT TRANSCRIPT DELTA (REAL):", event);
-                    
+
                     const responseId = event.response_id || 'default';
-                    
+
                     if (!this.agentTranscriptBuffer[responseId]) {
                         this.agentTranscriptBuffer[responseId] = '';
                     }
                     this.agentTranscriptBuffer[responseId] += event.delta;
-                    
+
                     if (this.connectionCallbacks.onAgentTranscriptionDelta) {
                         this.connectionCallbacks.onAgentTranscriptionDelta(responseId, event.delta);
                     }
                 });
-                
+
                 session.addListener('response.output_audio_transcript.done', (event: any) => {
                     console.log("🤖 AGENT TRANSCRIPT DONE (REAL):", event);
-                    
+
                     const responseId = event.response_id || 'default';
                     const fullTranscript = event.transcript || this.agentTranscriptBuffer[responseId] || '';
-                    
+
                     if (this.connectionCallbacks.onAgentTranscriptionComplete) {
                         this.connectionCallbacks.onAgentTranscriptionComplete(responseId, fullTranscript);
                     }
-                    
+
                     delete this.agentTranscriptBuffer[responseId];
                 });
-                
+
                 session.addListener('response.done', (event: any) => {
                     console.log("🤖 RESPONSE DONE (REAL):", event);
                 });
-                
+
                 // 🛠️ EVENTOS DE TOOL CALLS
                 session.addListener('response.function_call_arguments.delta', (event: any) => {
                     console.log("🛠️ TOOL CALL ARGUMENTS DELTA:", event);
                 });
-                
+
                 session.addListener('response.function_call_arguments.done', (event: any) => {
                     console.log("🛠️ TOOL CALL ARGUMENTS DONE:", event);
                 });
-                
+
                 session.addListener('response.output_item.added', (event: any) => {
                     console.log("🛠️ OUTPUT ITEM ADDED:", event);
-                    
+
                     // Verificar si es una llamada a función
                     if (event.item && event.item.type === 'function_call') {
                         console.log("🛠️ Function call detected:", event.item);
-                        
+
                         // Si es el tool send_product_metadata, procesarlo
                         if (event.item.name === 'send_product_metadata') {
                             console.log("🛠️ send_product_metadata tool call detected");
                         }
                     }
                 });
-                
+
                 // 🛠️ LISTENER ESPECÍFICO PARA TOOL CALLS COMPLETADOS
                 session.addListener('conversation.item.created', (event: any) => {
                     console.log("🛠️ CONVERSATION ITEM CREATED:", event);
-                    
+
                     if (event.item && event.item.type === 'function_call') {
                         console.log("🛠️ Function call item created:", event.item);
                         console.log("🛠️ Function call name:", event.item.name);
                         console.log("🛠️ Function call arguments (raw):", event.item.arguments);
                         console.log("🛠️ Arguments type:", typeof event.item.arguments);
-                        
+
                         if (event.item.name === 'send_product_metadata' && event.item.arguments) {
                             try {
                                 let args;
@@ -864,10 +863,10 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                                     console.log("🛠️ Using object arguments directly");
                                     args = event.item.arguments;
                                 }
-                                
+
                                 console.log("🛠️ Parsed args:", args);
                                 console.log("🛠️ Args keys:", Object.keys(args || {}));
-                                
+
                                 // Formatear los datos correctamente
                                 const formattedMetadata = {
                                     JsonData: {
@@ -876,9 +875,9 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                                     },
                                     TextMessage: "Aquí tienes algunos productos que podrían interesarte:"
                                 };
-                                
+
                                 console.log("🛠️ Sending formatted metadata from event listener:", formattedMetadata);
-                                
+
                                 // Ejecutar el callback de metadata directamente
                                 if (this.connectionCallbacks.onMetadata) {
                                     this.connectionCallbacks.onMetadata(formattedMetadata);
@@ -890,22 +889,22 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                         }
                     }
                 });
-                
+
                 // Conversation item completed (sin parsing de metadata)
                 session.addListener('conversation.item.completed', (event: any) => {
                     console.log("✅ CONVERSATION ITEM COMPLETED:", event);
-                    
+
                     // Solo triggear el callback general (mantener compatibilidad)
                     if (this.connectionCallbacks.onMessage) {
                         this.connectionCallbacks.onMessage(event);
                     }
                 });
-                
+
                 // Evento de sesión creada
                 session.addListener('session.created', (event: any) => {
                     console.log("✅ Session created successfully:", event);
                 });
-                
+
                 // Eventos básicos para compatibilidad
                 session.addListener('item', (item: any) => {
                     console.log("📨 Received item:", item);
@@ -979,15 +978,15 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 // Transcripción del agente en tiempo real (streaming)
                 session.addListener('response.audio_transcript.delta', (event: any) => {
                     console.log("🤖 Agent transcript delta:", event.delta);
-                    
+
                     const responseId = event.response_id || 'default';
-                    
+
                     // Acumular el delta en el buffer
                     if (!this.agentTranscriptBuffer[responseId]) {
                         this.agentTranscriptBuffer[responseId] = '';
                     }
                     this.agentTranscriptBuffer[responseId] += event.delta;
-                    
+
                     // Trigger callback con el delta
                     if (this.connectionCallbacks.onAgentTranscriptionDelta) {
                         this.connectionCallbacks.onAgentTranscriptionDelta(responseId, event.delta);
@@ -997,14 +996,14 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 // Transcripción del agente completada
                 session.addListener('response.audio_transcript.done', (event: any) => {
                     console.log("🤖 Agent transcript completed:", event.transcript);
-                    
+
                     const responseId = event.response_id || 'default';
                     const fullTranscript = event.transcript || this.agentTranscriptBuffer[responseId] || '';
-                    
+
                     if (this.connectionCallbacks.onAgentTranscriptionComplete) {
                         this.connectionCallbacks.onAgentTranscriptionComplete(responseId, fullTranscript);
                     }
-                    
+
                     // Limpiar el buffer
                     delete this.agentTranscriptBuffer[responseId];
                 });
@@ -1012,7 +1011,7 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 // Conversation item completed (sin parsing de metadata)
                 session.addListener('conversation.item.completed', (event: any) => {
                     console.log("✅ Conversation item completed:", event);
-                    
+
                     // Solo triggear el callback general (mantener compatibilidad)
                     if (this.connectionCallbacks.onMessage) {
                         this.connectionCallbacks.onMessage(event);
@@ -1020,7 +1019,9 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 });
 
                 console.log("📝 Event listeners setup completed WITH TRANSCRIPTION");
-            } else if (typeof session.on === 'function') {
+            }
+
+            else if (typeof session.on === 'function') {
                 // Evento de sesión creada
                 session.on('session.created', (event: any) => {
                     console.log("✅ Session created successfully:", event);
@@ -1052,12 +1053,12 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 session.on('response.audio_transcript.delta', (event: any) => {
                     console.log("🤖 Agent transcript delta:", event.delta);
                     const responseId = event.response_id || 'default';
-                    
+
                     if (!this.agentTranscriptBuffer[responseId]) {
                         this.agentTranscriptBuffer[responseId] = '';
                     }
                     this.agentTranscriptBuffer[responseId] += event.delta;
-                    
+
                     if (this.connectionCallbacks.onAgentTranscriptionDelta) {
                         this.connectionCallbacks.onAgentTranscriptionDelta(responseId, event.delta);
                     }
@@ -1067,23 +1068,23 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                     console.log("🤖 Agent transcript completed:", event.transcript);
                     const responseId = event.response_id || 'default';
                     const fullTranscript = event.transcript || this.agentTranscriptBuffer[responseId] || '';
-                    
+
                     if (this.connectionCallbacks.onAgentTranscriptionComplete) {
                         this.connectionCallbacks.onAgentTranscriptionComplete(responseId, fullTranscript);
                     }
-                    
+
                     delete this.agentTranscriptBuffer[responseId];
                 });
 
                 // 🛠️ TOOL EVENTS CON 'on' METHOD
                 session.on('conversation.item.created', (event: any) => {
                     console.log("🛠️ CONVERSATION ITEM CREATED (ON):", event);
-                    
+
                     if (event.item && event.item.type === 'function_call') {
                         console.log("🛠️ Function call item created (ON):", event.item);
                         console.log("🛠️ Function call name (ON):", event.item.name);
                         console.log("🛠️ Function call arguments (ON, raw):", event.item.arguments);
-                        
+
                         if (event.item.name === 'send_product_metadata' && event.item.arguments) {
                             try {
                                 let args;
@@ -1094,9 +1095,9 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                                     console.log("🛠️ Using object arguments directly (ON)");
                                     args = event.item.arguments;
                                 }
-                                
+
                                 console.log("🛠️ Parsed args (ON):", args);
-                                
+
                                 // Formatear los datos correctamente
                                 const formattedMetadata = {
                                     JsonData: {
@@ -1105,9 +1106,9 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                                     },
                                     TextMessage: "Aquí tienes algunos productos que podrían interesarte:"
                                 };
-                                
+
                                 console.log("🛠️ Sending formatted metadata from ON event listener:", formattedMetadata);
-                                
+
                                 // Ejecutar el callback de metadata directamente
                                 if (this.connectionCallbacks.onMetadata) {
                                     this.connectionCallbacks.onMetadata(formattedMetadata);
@@ -1121,9 +1122,12 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 });
 
                 console.log("📝 Event listeners setup with 'on' method WITH TRANSCRIPTION AND TOOLS");
-            } else {
+            }
+
+            else {
                 console.log("📝 Event listeners setup - no compatible method found");
             }
+
         } catch (error) {
             console.error("❌ Error setting up event listeners:", error);
         }
