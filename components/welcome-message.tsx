@@ -1,24 +1,77 @@
 "use client"
 
-export function WelcomeMessage() {
+import { useRef, useEffect, Dispatch, SetStateAction } from "react";
+import { gsap } from "gsap";
+import { dataLanguage } from "@/languajes/data";
+import { useLanguageStore } from "@/store/useLanguageStore";
+
+export function WelcomeMessage({ status, setter }: { status: boolean, setter: Dispatch<SetStateAction<boolean>> }) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const { languageCurrent } = useLanguageStore()
+
+  useEffect(() => {
+
+    if (!status) {
+      if (divRef.current) {
+
+        gsap.to(divRef.current, {
+          x: -3000,
+          duration: 1.5,
+          ease: "power2.inOut",
+          delay: .5,
+        });
+
+      }
+    } else {
+      return
+    }
+
+  }, [status]);
+
   return (
-    <div className="relative bg-gray-100 rounded-2xl w-[80%]">
-      {/* AI Icon Circle */}
-      <div className="absolute top-[-40px] right-[-20px] size-[100px] bg-[#c41230] rounded-full flex items-center justify-center shadow-lg">
-        <svg className="size-[60px]" viewBox="0 0 16 16" aria-hidden="true" role="presentation" fill="white">
-          <path
-            fillRule="evenodd"
-            d="M2.197 8.98c.63-.276 1.206-.61 1.602-1.006.397-.397.73-.971 1.006-1.602.275-.63.489-1.309.648-1.908.055-.208.277-.29.46-.29.182 0 .404.082.46.29.159.6.373 1.278.647 1.908.276.63.61 1.205 1.006 1.602.397.396.971.73 1.602 1.006.63.274 1.309.488 1.908.648.208.055.29.277.29.46 0 .182-.082.404-.29.459-.6.16-1.278.373-1.908.648-.63.275-1.205.61-1.602 1.006-.396.396-.73.971-1.006 1.602-.274.63-.488 1.308-.648 1.908-.055.207-.277.289-.46.289-.182 0-.404-.082-.459-.29-.16-.599-.373-1.278-.648-1.907-.276-.63-.61-1.206-1.006-1.602-.396-.397-.971-.73-1.602-1.006a13.615 13.615 0 0 0-1.908-.648C.082 10.492 0 10.27 0 10.087c0-.182.082-.404.29-.46.599-.159 1.278-.373 1.907-.647Zm8.18-6.137c.379-.155.719-.345.948-.574.229-.229.419-.569.573-.947.154-.377.27-.785.355-1.145a.214.214 0 0 1 .114-.14.35.35 0 0 1 .16-.037.35.35 0 0 1 .162.037c.05.027.098.072.114.14.084.36.2.768.354 1.145.155.378.345.718.574.947.229.23.569.42.947.574.377.154.785.27 1.145.354a.214.214 0 0 1 .14.114.35.35 0 0 1 .037.161.35.35 0 0 1-.037.162.214.214 0 0 1-.14.113c-.36.085-.768.2-1.145.355-.378.154-.718.344-.947.573-.23.229-.42.569-.574.947-.154.377-.27.786-.354 1.145a.214.214 0 0 1-.114.14.35.35 0 0 1-.161.037.35.35 0 0 1-.162-.037.214.214 0 0 1-.113-.14c-.085-.36-.2-.768-.355-1.145-.154-.378-.344-.718-.573-.947-.229-.229-.569-.419-.947-.573a7.817 7.817 0 0 0-1.145-.355.214.214 0 0 1-.14-.113.35.35 0 0 1-.037-.162.35.35 0 0 1 .037-.161.214.214 0 0 1 .14-.114c.36-.084.768-.2 1.145-.354Z"
-            clipRule="evenodd"
-          />
-        </svg>
+    <div
+      ref={divRef}
+      className="backgroundWelcomeMessage absolute w-[100%] h-[100dvh] top-0 left-0 z-50 flex justify-start items-center flex-col gap-5"
+    >
+
+      {/* Loader */}
+      <div className="flex items-center gap-1 flex-col-reverse bg-[#c41230] py-4 px-4 shadow-[0px_0px_10px_#c41230]">
+        <h2 className="font-semibold text-white text-[25px] text-center">
+          {
+            languageCurrent && dataLanguage.welcome[languageCurrent][0]
+          }
+          <p className="text-[10px]">
+            {
+
+              languageCurrent && dataLanguage.welcome[languageCurrent][1]
+            }
+          </p>
+        </h2>
+        <div className="relative flex justify-center align-middle">
+
+          <div className="w-[50px] h-[50px] border-2 border-white  rounded-full flex justify-center align-middle "></div>
+
+          <img src="/img/AIPng.png" className="absolute w-13 h-13 rounded-full "></img>
+        </div>
       </div>
 
-      {/* Welcome Text */}
-      <div className="text-left">
-        <h2 className="text-[40px] font-bold text-[#c41230]">Hola,</h2>
-        <p className="text-gray-700 font-bold text-[30px] text-lg">¿Que puedo ayudarte a encontrar hoy?</p>
+      <div className="w-[100%] absolute bottom-0 py-5  gap-[10px] flex flex-col bg-[#000000aa] backdrop-blur-sm shadow-[0px_-5px_10px_#000000cc]">
+        <p
+          className="text-[45px] font-bold text-white text-center"
+          onClick={() => alert('Mostrar terminos y condiciones')}
+        >
+          {
+            languageCurrent && dataLanguage.welcome[languageCurrent][3]
+          }
+          <p className="text-[#ffffff] text-[12px] font-bold px-4  rounded-lg">
+            {
+              languageCurrent && dataLanguage.welcome[languageCurrent][4]
+            }
+          </p>
+        </p>
       </div>
+
     </div>
-  )
+
+  );
 }

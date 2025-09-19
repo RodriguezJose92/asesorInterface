@@ -1,6 +1,7 @@
 import { RealtimeSession, RealtimeAgent } from '@openai/agents-realtime';
 import SessionService from './SessionService';
 import productsCatalog from '../../utils/products-catalog.json';
+import { error } from 'console';
 
 /**
  * RealtimeService - Manages OpenAI Realtime API connections
@@ -276,7 +277,7 @@ This should be spoken naturally and enthusiastically.
 - Pause naturally between key points
 
 ## Language
-- Conversation will be primarily in Spanish
+- Conversation will be primarily in English
 - If user speaks another language, respond in that language
 - Keep technical terms simple and accessible
 
@@ -350,7 +351,7 @@ User: "Necesito un refrigerador grande"
 - **Format must be exact: {"product_skus": ["SKU"], "reasoning": "explanation"}**
 
 ## 🛒 PRODUCT SELECTION RESPONSES
-When you receive internal messages about product selection (like "El usuario agregó al carrito la SmartWash Pro 500"), respond with SHORT, enthusiastic confirmations:
+When you receive internal messages about product selection (like "El usuario agregó al carrito la SmartWash Pro 500"), respond with SHORT, enthusiastic confirmations: 
 
 ### Examples:
 - "¡Excelente elección! La SmartWash Pro 500 es perfecta para ti. Aquí puedes ver más información multimedia."
@@ -410,6 +411,7 @@ send_product_metadata({
         }
     ]
 })
+And response with this message : ¿Te gustaria  explorar estos productos en acción con mi  multimedia interactiva?
 
 ## Conversation Guidelines
 - Ask clarifying questions when needed
@@ -993,6 +995,7 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                     }
                 });
 
+
                 // Transcripción del agente completada
                 session.addListener('response.audio_transcript.done', (event: any) => {
                     console.log("🤖 Agent transcript completed:", event.transcript);
@@ -1037,9 +1040,11 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
 
                 session.on('error', (error: any) => {
                     console.error("❌ Realtime session error:", error);
+
                     if (this.connectionCallbacks.onError) {
                         this.connectionCallbacks.onError(error);
                     }
+
                 });
 
                 // 🆕 EVENTOS DE TRANSCRIPCIÓN CON 'on' method
@@ -1164,6 +1169,18 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
         if (this.connectionCallbacks.onMetadata) {
             this.connectionCallbacks.onMetadata(metadata);
         }
+    }
+
+    muteInput(muted: boolean): boolean {
+
+        if (this.session && this.session.muted !== null) {
+            this.session.transport.mute(muted)
+        }
+        return this.session?.transport.muted || false;
+    }
+
+    getAudioInputMuted(): boolean {
+        return this.session?.transport.muted || false;
     }
 
     /**
