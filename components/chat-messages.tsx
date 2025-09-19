@@ -1,7 +1,8 @@
 "use client"
 
 import './styles/swiperProductCard.css'
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useState } from "react"
+import { gsap } from "gsap"
 import { cn } from "@/lib/utils"
 import { ProductCard } from './popup-product-card'
 import { ImageCarousel } from "./image-carousel"
@@ -13,6 +14,8 @@ import "swiper/css/autoplay"
 import "swiper/css/pagination"
 import "swiper/css/navigation";
 import { Navigation, Autoplay, Pagination } from "swiper/modules";
+import { dataLanguage } from "@/languajes/data";
+import { useLanguageStore } from '@/store/useLanguageStore'
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -35,6 +38,24 @@ export function ChatMessages({
   showUserTranscript
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [showPolicy, setShowPolicy] = useState(true);
+  const policyRef = useRef<HTMLDivElement>(null);
+  const { languageCurrent } = useLanguageStore()
+
+  /** Manejador cierre */
+  const handleClose = () => {
+    if (policyRef.current) {
+      gsap.to(policyRef.current, {
+        opacity: 0,
+        y: -40,
+        duration: 0.5,
+        ease: "power2.in",
+        onComplete: () => {
+          setTimeout(() => setShowPolicy(false), 200); // remove after short delay
+        }
+      });
+    }
+  };
 
   // 🔍 DEBUG: Monitorear props
   useEffect(() => {
@@ -51,6 +72,39 @@ export function ChatMessages({
 
   return (
     <div className="overflow-y-auto p-4 space-y-4">
+
+      {/** Politicas y condiciones */}
+      {
+        !showPolicy ? <></> :
+          <div
+            ref={policyRef}
+            className={"max-w-[100%] p-3 flex items-start gap-2 bg-gray-200 shadow-lg rounded-md relative"}
+            style={{ transition: "opacity 0.5s, transform 0.5s" }}
+          >
+            <h1
+              className='absolute top-[-10px] right-[-5px] bg-[#c41230] px-[7px] rounded-full text-white font-bold cursor-pointer text-[16px]'
+              onClick={handleClose}
+              title="Cerrar"
+            >
+              X
+            </h1>
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] text-center w-[95%] flex flex-col gap-2 mx-auto">
+                {
+                  languageCurrent && dataLanguage.chatMessage[languageCurrent][0]
+                }
+                <br></br>
+                <span className='w-full bg-white/70 font-bold p-1 rounded-sm'>
+                  {
+                    languageCurrent && dataLanguage.chatMessage[languageCurrent][1]
+                  }
+                </span>
+              </p>
+            </div>
+          </div>
+
+      }
+
       {messages.map((message) => (
         <div key={message.id} className={cn("flex", message.isUser ? "justify-end" : "justify-start")}>
           {
@@ -65,10 +119,10 @@ export function ChatMessages({
                     spaceBetween={10}
                     slidesPerView={1}
                     className="w-full productSliderMudi"
-                    modules={[Navigation, Autoplay, Pagination]}
-                    navigation={true}
+                    modules={[Autoplay, Pagination]}
+
                     pagination={true}
-                    autoplay={{ delay: 3000, disableOnInteraction: false }}
+                    // autoplay={{ delay: 3000, disableOnInteraction: false }}
                     loop={true}
                     style={{
                       // @ts-ignore
@@ -92,13 +146,13 @@ export function ChatMessages({
               // 🎯 MENSAJE DE TEXTO LIMPIO
               (() => {
                 const isAgentTyping = !message.isUser && message.id === currentAgentMessageId
-                
+
                 return (
                   <div
                     className={cn(
                       "max-w-[95%] p-3 rounded-2xl flex items-start gap-2",
-                      message.isUser 
-                        ? "bg-[#c41230] text-white justify-end" 
+                      message.isUser
+                        ? "bg-[#c41230] text-white justify-end"
                         : "bg-white/70 text-gray-800 border border-white/30 justify-start"
                     )}
                   >
@@ -110,7 +164,7 @@ export function ChatMessages({
                         style={{ minWidth: 28, minHeight: 28 }}
                       />
                     )}
-                    
+
                     <div className="flex flex-col gap-1">
                       <p className="text-sm">
                         {message.content}
@@ -120,6 +174,7 @@ export function ChatMessages({
                         )}
                       </p>
                     </div>
+
                   </div>
                 )
               })()
@@ -147,5 +202,7 @@ export function ChatMessages({
 
       <div ref={messagesEndRef} />
     </div>
-  )
-}
+  );
+
+};
+

@@ -276,7 +276,7 @@ This should be spoken naturally and enthusiastically.
 - Pause naturally between key points
 
 ## Language
-- Conversation will be primarily in Spanish
+- Conversation will be primarily in English
 - If user speaks another language, respond in that language
 - Keep technical terms simple and accessible
 

@@ -12,9 +12,17 @@ interface ImageCarouselProps {
 }
 
 export function ImageCarousel({ images, productName }: ImageCarouselProps) {
-  const [marginTop, setMarginTop] = useState<string>('0px')
+
+  const cardRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0)
   const [activeView, setActiveView] = useState("IMÁGENES")
+
+  const viewOptions = [
+    { id: "3D", label: "3D", icon: Box },
+    { id: "IMÁGENES", label: "IMÁGENES", icon: ImageIcon },
+    { id: "VIDEO", label: "VIDEO", icon: Play },
+    { id: "AR", label: "AR", icon: Scan },
+  ]
 
   const nextImage = () => {
     setCurrentIndex((prev) => (prev + 1) % images.length)
@@ -24,27 +32,8 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
   }
 
-  const calculateheight = (): void => {
-    const el = document.getElementById('headerComponent') as HTMLDivElement | null;
-    const heightPx = el ? `${el.getBoundingClientRect().height}px` : '0px';
-    console.log(heightPx)
-    setMarginTop(heightPx)
-  }
-
-  const viewOptions = [
-    { id: "3D", label: "3D", icon: Box },
-    { id: "IMÁGENES", label: "IMÁGENES", icon: ImageIcon },
-    { id: "VIDEO", label: "VIDEO", icon: Play },
-    { id: "AR", label: "AR", icon: Scan },
-  ]
-
-  const cardRef = useRef(null);
-
   useEffect(() => {
-    calculateheight()
-  }, [])
 
-  useEffect(() => {
     setTimeout(() => {
       if (cardRef.current) {
         gsap.fromTo(
@@ -53,7 +42,7 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
           { opacity: 1, duration: 0.7 }
         );
       }
-    }, 200)
+    }, 4000)
 
   }, []);
 
@@ -64,10 +53,33 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
   return (
     <Card
       ref={cardRef}
-      className={`w-full  overflow-hidden absolute left-[0px] h-[80%] z-[2] flex flex-col items-center justify-center opacity-0 border-[transparent] bg-[#f5f5f5]`}
+      className={`w-full  overflow-hidden absolute top-0 left-[0px] h-[100dvh] z-[2] flex flex-col items-center justify-center opacity-0 border-[transparent] bg-[#f5f5f5]`}
       id="multiMediaPopUp"
-      style={{ top: marginTop }}
+
     >
+
+      {/* OPTIONS */}
+      <div className="flex items-center justify-center p-3 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex gap-1">
+          {viewOptions.map((option) => {
+            const Icon = option.icon
+            const isActive = activeView === option.id
+            return (
+              <Button
+                key={option.id}
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveView(option.id)}
+                className={`flex flex-col items-center gap-1 h-auto py-2 px-2 rounded-lg transition-colors w-16 ${isActive ? "bg-red-50 text-red-600 border border-red-200" : "text-gray-600 hover:bg-gray-100"
+                  }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-[10px] font-medium">{option.label}</span>
+              </Button>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Image Container */}
       {
@@ -156,28 +168,7 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
         )}
       </div>
 
-      {/* OPTIONS */}
-      <div className="flex items-center justify-center p-3 border-b border-gray-100 bg-gray-50/50">
-        <div className="flex gap-1">
-          {viewOptions.map((option) => {
-            const Icon = option.icon
-            const isActive = activeView === option.id
-            return (
-              <Button
-                key={option.id}
-                variant="ghost"
-                size="sm"
-                onClick={() => setActiveView(option.id)}
-                className={`flex flex-col items-center gap-1 h-auto py-2 px-2 rounded-lg transition-colors w-16 ${isActive ? "bg-red-50 text-red-600 border border-red-200" : "text-gray-600 hover:bg-gray-100"
-                  }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="text-[10px] font-medium">{option.label}</span>
-              </Button>
-            )
-          })}
-        </div>
-      </div>
+
     </Card>
   )
 }

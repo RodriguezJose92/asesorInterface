@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { X, ChevronDown } from "lucide-react"
 import { DetailedSurvey } from "./detailed-survey"
+import { dataLanguage } from "@/languajes/data";
+import { useLanguageStore } from "@/store/useLanguageStore"
 
 interface SurveyOverlayProps {
   onStartSurvey: () => void
@@ -14,6 +16,7 @@ interface SurveyOverlayProps {
 
 export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: SurveyOverlayProps) {
   const [showDetailedSurvey, setShowDetailedSurvey] = useState(false)
+  const { languageCurrent } = useLanguageStore()
 
   const handleStartSurvey = () => {
     setShowDetailedSurvey(true)
@@ -49,14 +52,18 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
         {/* Content */}
         <div className="text-center mb-8">
           <p className="text-gray-700 text-sm leading-relaxed">
-            Antes de salir, ayúdanos a mejorar la experiencia de chat respondiendo esta breve encuesta.
+            {
+              languageCurrent && dataLanguage.survey[languageCurrent][0]
+            }
           </p>
         </div>
 
         {/* Buttons */}
         <div className="space-y-3">
           <Button onClick={handleStartSurvey} className="w-full bg-[#c41230] text-white h-11">
-            Empezar la encuesta
+            {
+              languageCurrent && dataLanguage.survey[languageCurrent][1]
+            }
           </Button>
 
           <Button
@@ -64,7 +71,9 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
             onClick={onResumeChat}
             className="w-full border-[#c41230] text-[#c41230] h-11 bg-transparent"
           >
-            Reanudar el chat
+            {
+              languageCurrent && dataLanguage.survey[languageCurrent][2]
+            }
           </Button>
 
           <Button
@@ -72,7 +81,9 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
             onClick={onCloseChat}
             className="w-full border-[#c41230] text-[#c41230] h-11 bg-transparent"
           >
-            Cerrar el chat
+            {
+              languageCurrent && dataLanguage.survey[languageCurrent][3]
+            }
           </Button>
         </div>
       </Card>

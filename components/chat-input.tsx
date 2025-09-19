@@ -3,10 +3,15 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Mic, MicOff, Loader2 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRealtime } from "@/hooks/useRealtime"
 import { toast } from "sonner"
-import microphone from "@/utils/call/Microphone"
+import { useQuickOptionsStore } from "@/store/useQuickOptionsStore"
+import { dataLanguage } from "@/languajes/data";
+import { useLanguageStore } from "@/store/useLanguageStore"
+
+import RealtimeService from "./services/RealtimeService"
+import { AutoSlider } from "./auto-slider"
 
 
 interface ChatInputProps {
@@ -17,7 +22,15 @@ interface ChatInputProps {
 
 export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
   // Local state for UI
-  const [isRealtimeActive, setIsRealtimeActive] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const { languageCurrent } = useLanguageStore()
+
+  // Global state for quick options
+  const { viewQuickOptions, setViewQuicOptions, toggleViewQuickOptions } = useQuickOptionsStore();
+
+  // Touch states for swipe detection
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Realtime hook for OpenAI integration
   const {
@@ -32,17 +45,11 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     audioData
   } = useRealtime();
 
-  const verifyStatusMic = () => {
-    const micStatus = microphone.statusMic
-    alert(!micStatus)
-    microphone.handlerStatusdMic(!micStatus)
-  }
-
   // Handle connection errors
   useEffect(() => {
     if (connectionError) {
       toast.error(`Realtime Error: ${connectionError}`);
-      setIsRealtimeActive(false);
+      // setIsRealtimeActive(false);
     }
   }, [connectionError]);
 
@@ -66,31 +73,18 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     }
   }, [audioData]);
 
+  useEffect(() => {
+    console.log(isMuted)
+  }, [isMuted])
+
 
   /**
    * Handles starting/stopping the realtime session
    */
   const handleRealtimeToggle = async () => {
-    try {
-      if (!isRealtimeConnected && !isRealtimeConnecting) {
-        // Start realtime session
-        toast.info("🔄 Starting OpenAI Realtime session...");
-        await startRealtime();
-        setIsRealtimeActive(true);
-        toast.success("🎤 Realtime session active");
-      } else if (isRealtimeConnected) {
-        // Stop realtime session
-        toast.info("🔄 Stopping realtime session...");
-        await stopRealtime();
-        setIsRealtimeActive(false);
-        clearRealtimeMessages();
-        toast.success("🔌 Realtime session ended");
-      }
-    } catch (error) {
-      console.error("Error managing realtime session:", error);
-      toast.error("Failed to manage realtime session");
-      setIsRealtimeActive(false);
-    }
+    const currentStatusCall = RealtimeService.getAudioInputMuted()
+    RealtimeService.muteInput(!currentStatusCall);
+    setIsMuted(!currentStatusCall)
   };
 
   /**
@@ -131,16 +125,72 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
   const hasText = value.trim().length > 0;
   const isLoading = isRealtimeConnecting;
   const [showRealtimeIndicator, setShowRealtimeIndicator] = useState<boolean>(false)
+  const [counter, setCounter] = useState<number>(0)
+
+  useEffect(() => {
+    console.log(counter)
+    if (counter > 0) {
+      value == '' && (setViewQuicOptions(false))
+      value !== '' && (setViewQuicOptions(true))
+    }
+
+  }, [value])
+
+  useEffect(() => {
+
+    if (hasText && counter == 0) {
+      setCounter(1)
+    }
+  }, [hasText])
+
+  // Touch handlers for swipe detection
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientY);
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isUpSwipe = distance > minSwipeDistance;
+
+    if (isUpSwipe) {
+      if (!viewQuickOptions) {
+        toggleViewQuickOptions();
+      }
+    }
+  };
 
   return (
-    <div className="px-[10px] py-[2px] rounded-[10px] shadow-[0_0_3px_#c41230] w-[95%] mx-auto mb-[10px]">
-      <div className="flex gap-2 items-center">
+    <div className="px-[10px] py-[2px] rounded-[10px] shadow-[0_0_3px_#c41230] w-[95%] mx-auto mb-[10px] relative z-10">
+
+      {/* Auto Slider */}
+      <div className="row-span-1  pb-[13px] absolute top-[-200%]" id="quickQuestionSliders">
+
+        <AutoSlider />
+
+      </div>
+
+      <div
+        className="flex gap-2 items-center"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div className="flex-1 relative">
           <Input
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={`${showRealtimeIndicator ? "Realtime Active - Type or speak..." : "Escribe tu pregunta"}`}
-            className="bg-[transparent] border-[transparent] text-gray-800 placeholder:text-gray-500 inputUser focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 border-0 w-[90%]"
+            onClick={(e) => e.preventDefault}
+            placeholder={`${!isMuted ?
+              languageCurrent && dataLanguage.inputMessage[languageCurrent][0] :
+              languageCurrent && dataLanguage.inputMessage[languageCurrent][1]
+              }`}
+            className="bg-[transparent] border-[transparent] text-gray-800 placeholder:text-gray-500 inputUser focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 border-0 w-[100%] text-[16px]"
             onKeyPress={(e) => e.key === "Enter" && handleEnhancedSend()}
           />
           <div className={`absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 w-[max-content] overflow-auto ${hasText ? '' : 'w-[0px]'}`}>
@@ -156,42 +206,49 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
         </div>
         {!hasText && (
           <>
-            <Button
-              size="icon"
-              variant="outline"
-              disabled={isLoading}
-              className={`h-8 w-8 transition-all duration-200 rounded-full border-[#c41230] text-[#c41230] hover:bg-[transparent] 
+            {
+              !isMuted &&
+              <Button
+                size="icon"
+                variant="outline"
+                disabled={isLoading}
+                className={`h-8 w-8 transition-all duration-200 rounded-full  text-[#c41230] hover:bg-[transparent] 
               ${showRealtimeIndicator ? "bg-green-100 border-green-500 text-green-600" : "bg-[transparent] border-[1px]"}
-              ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-              onClick={verifyStatusMic}
-              title={isRealtimeConnected ? "Stop Realtime Session" : "Start Realtime Session"}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : showRealtimeIndicator ? (
-                <MicOff className={`w-4 h-4`} />
-              ) : (
-                <Mic className={`w-4 h-4`} />
-              )}
-            </Button>
+              ${isLoading ? "opacity-50 cursor-not-allowed" : ""}
+              `}
+                // onClick={ }
+                title={isRealtimeConnected ? "Stop Realtime Session" : "Start Realtime Session"}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <div className={`w-4 h-4`} onClick={() => { RealtimeService.muteInput(true); setIsMuted(true) }}>
+                    <Mic className={`w-4 h-4`} />
+                  </div>
+                )}
+
+              </Button>
+            }
+
+
             <Button
               size="sm"
               disabled={isLoading}
-              className={`transition-all duration-200 rounded-full text-white px-[12px]
+              className={`transition-all duration-200 rounded-full text-white px-[12px] flex  items-center justify-center
               ${showRealtimeIndicator ? "h-8 w-[auto] bg-green-600 hover:bg-green-700" : "h-8 w-8 bg-[#c41230] hover:bg-[#c41230]"}
-              ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+              ${isLoading ? "opacity-50 cursor-not-allowed" : ""} ${!isMuted ? "w-[auto] " : "w-8 h-8"}`}
               onClick={handleRealtimeToggle}
               title={isRealtimeConnected ? "End Realtime Session" : "Start Realtime Session"}
             >
-              <div className={`flex items-center gap-1`}>
+              <div className={`flex items-center justify-center ${!isMuted ? "gap-1" : ""}`}>
                 <div className="flex gap-0.5 items-center justify-center">
-                  <div className={`w-[2px] h-3 bg-white rounded ${showRealtimeIndicator ? "animate-pulse" : ""}`}></div>
-                  <div className={`w-[2px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-75" : ""}`}></div>
-                  <div className={`w-[2px] h-4 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-150" : ""}`}></div>
-                  <div className={`w-[2px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-75" : ""}`}></div>
+                  <div className={`w-[3px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse" : ""}`}></div>
+
+                  <div className={`w-[3px] h-4 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-150" : ""}`}></div>
+                  <div className={`w-[3px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-75" : ""}`}></div>
                 </div>
-                <span className={`text-xs font-medium  ${showRealtimeIndicator ? "flex " : "hidden"}`}>
-                  {isRealtimeConnected ? "End" : "Starting..."}
+                <span className={`text-xs font-medium`}>
+                  {isMuted ? "" : "End"}
                 </span>
               </div>
             </Button>

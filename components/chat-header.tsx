@@ -23,7 +23,7 @@ export function ChatHeader({ onClose, onMinimize, backgroundClass }: ChatHeaderP
 
   return (
     <div
-      className={`flex items-center justify-between py-4 pl-[30px] pr-[10px] rounded-bl-[50px] z-1 ${backgroundClass ? backgroundClass : "bg-[#c41230]"}`} id="headerComponent"
+      className={`flex items-center justify-between py-4 pl-[30px] pr-[10px] rounded-bl-[50px] z-10 ${backgroundClass ? backgroundClass : "bg-[#c41230]"}`} id="headerComponent"
     >
 
       {

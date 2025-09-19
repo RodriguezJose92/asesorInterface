@@ -88,3 +88,10 @@
   width: 25px !important;
   height: 25px !important;
 }
+
+.backgroundWelcomeMessage {
+  background-image: url("/img/backgroundWelcome.png");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}

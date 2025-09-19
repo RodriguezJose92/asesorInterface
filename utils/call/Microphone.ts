@@ -1,6 +1,13 @@
+import { boolean } from "zod";
 import { CallConectionStore } from "../stores/CallConectionStore";
 
 class Microphone {
+
+    statusMic: boolean;
+
+    constructor() {
+        this.statusMic = false;
+    }
 
     private connectStream() {
         /** Add Mic to PeerConection */
@@ -60,11 +67,22 @@ class Microphone {
     }
 
     handlerStatusdMic(status: boolean) {
-        const mic = CallConectionStore.getState().micUser
-        mic?.getAudioTracks().forEach(track => {
-            track.enabled = status
-            CallConectionStore.getState().setStatusMic(status);
-        })
+
+        async function init() {
+            let ms = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            ms?.getAudioTracks().forEach(track => {
+                track.enabled = status
+            })
+        }
+
+        init();
+
     }
 }
 
