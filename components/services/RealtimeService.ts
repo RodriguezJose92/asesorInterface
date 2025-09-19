@@ -2,6 +2,14 @@ import { RealtimeSession, RealtimeAgent } from '@openai/agents-realtime';
 import SessionService from './SessionService';
 import productsCatalog from '../../utils/products-catalog.json';
 import { error } from 'console';
+import { useLanguageStore } from '../../store/useLanguageStore';
+import {
+    multilingualGreetings,
+    getGreetingForLanguage,
+    getLanguageDetectedMessage,
+    getLanguageSwitchMessage,
+    detectLanguageFromText
+} from '../../utils/multilingualGreetings';
 
 /**
  * RealtimeService - Manages OpenAI Realtime API connections
@@ -44,8 +52,28 @@ class RealtimeService {
     private isWaitingForUserTranscription: boolean = false;
     private userSpeechTimeout: NodeJS.Timeout | null = null;
 
+    // 🌍 MULTILINGUAL SUPPORT
+    private currentLanguage: string = 'en';
+    private browserLanguage: string = 'en';
+    private hasGreeted: boolean = false;
+    private lastDetectedLanguage: string | null = null;
+
     private constructor() {
         // Private constructor for singleton pattern
+        this.initializeLanguageDetection();
+    }
+
+    /**
+     * Initialize language detection from browser
+     */
+    private initializeLanguageDetection(): void {
+        if (typeof window !== 'undefined') {
+            const languageStore = useLanguageStore.getState();
+            this.browserLanguage = languageStore.detectBrowserLanguage();
+            this.currentLanguage = languageStore.getEffectiveLanguage();
+            
+            console.log(`🌍 Language initialized - Browser: ${this.browserLanguage}, Current: ${this.currentLanguage}`);
+        }
     }
 
     /**
@@ -246,55 +274,159 @@ class RealtimeService {
                     }
                 }
             ],
-            instructions: `# Role & Objective
+            instructions: this.generateMultilingualInstructions(),
+            handoffDescription: "Voice assistant for product recommendations"
+        });
+    }
+
+    /**
+     * Generate product instructions from catalog
+     */
+    private generateProductInstructions(): string {
+        let instructions = `# Context - Complete Product Knowledge Base\n`;
+
+        // Agrupar productos por categoría
+        const categories: { [key: string]: any[] } = {};
+        productsCatalog.products.forEach((product: any) => {
+            if (!categories[product.category]) {
+                categories[product.category] = [];
+            }
+            categories[product.category].push(product);
+        });
+
+        // Generar secciones por categoría
+        Object.keys(categories).forEach(category => {
+            const categoryName = category.toUpperCase();
+            instructions += `\n## ${categoryName}\n`;
+
+            categories[category].forEach((product: any, index: number) => {
+                const finalPrice = product.price * (1 - product.discount / 100);
+                instructions += `\n### ${index + 1}. ${product.sku} - ${product.name}\n`;
+                instructions += `- **Price**: $${product.price} (${product.discount}% discount = $${finalPrice.toFixed(2)} final price)\n`;
+                instructions += `- **Rating**: ${product.rate}/5 stars\n`;
+                instructions += `- **Capacity**: ${product.capacity}\n`;
+                instructions += `- **Type**: ${product.type}\n`;
+                instructions += `- **Brand**: ${product.brand}\n`;
+                instructions += `- **Key Features**: ${product.features.join(', ')}\n`;
+                instructions += `- **Description**: ${product.description}\n`;
+
+                if (product.FAQS && product.FAQS.length > 0) {
+                    instructions += `- **Common Questions**:\n`;
+                    product.FAQS.forEach((faq: any) => {
+                        instructions += `  * ${faq.question} → ${faq.answer}\n`;
+                    });
+                }
+                instructions += `\n`;
+            });
+        });
+
+        // Agregar matriz de decisión
+        instructions += `\n## DECISION MATRIX - Use This to Choose Products\n`;
+        instructions += `**Available SKUs**: ${productsCatalog.products.map((p: any) => p.sku).join(', ')}\n`;
+        instructions += `**By Budget**: \n`;
+
+        const sortedByPrice = [...productsCatalog.products].sort((a: any, b: any) => a.price - b.price);
+        sortedByPrice.forEach((product: any) => {
+            const finalPrice = product.price * (1 - product.discount / 100);
+            instructions += `- $${finalPrice.toFixed(2)}: ${product.sku} (${product.name})\n`;
+        });
+
+        instructions += `\n**By Category**: \n`;
+        Object.keys(categories).forEach(category => {
+            const skus = categories[category].map((p: any) => p.sku).join(', ');
+            instructions += `- ${category}: ${skus}\n`;
+        });
+
+        return instructions;
+    }
+
+    /**
+     * Generate multilingual instructions based on current language
+     */
+    private generateMultilingualInstructions(): string {
+        const greeting = getGreetingForLanguage(this.currentLanguage);
+        const languageDetectedMsg = getLanguageDetectedMessage(this.currentLanguage);
+        
+        // Get language-specific terms
+        const languageTerms = this.getLanguageSpecificTerms(this.currentLanguage);
+        
+        // Generate product instructions
+        const productInstructions = this.generateProductInstructions();
+        
+        return `# Role & Objective
 You are a knowledgeable voice assistant for a home appliances product catalog.
 Your goal is to help customers find the perfect appliances by providing personalized recommendations through natural conversation.
 Success means delivering both engaging spoken responses AND structured product data for visual display.
 
-# CRITICAL: AUTOMATIC GREETING
-When someone says "Hola" or greets you, ALWAYS respond with:
-"¡Hola! Soy tu asistente de electrodomésticos. ¿En qué puedo ayudarte hoy?"
-This should be spoken naturally and enthusiastically.
+# 🌍 MULTILINGUAL BEHAVIOR - CRITICAL RULES
+## Language Detection & Response
+- **BROWSER LANGUAGE DETECTED**: ${this.browserLanguage.toUpperCase()}
+- **CURRENT LANGUAGE**: ${this.currentLanguage.toUpperCase()}
+- **INITIAL GREETING**: Always use "${greeting}" when first greeting users
+- **LANGUAGE PRIORITY**:
+  1. ALWAYS greet in the browser's detected language (${this.browserLanguage})
+  2. If user switches language during conversation, adapt immediately
+  3. NEVER change language unless user explicitly does so
+  4. Maintain conversation in user's chosen language throughout
+
+## Language Change Detection
+- Monitor user input for language changes
+- If user switches to a different language, respond: "${getLanguageSwitchMessage(this.currentLanguage)}"
+- Then continue the entire conversation in the new language
+- Update all responses, product descriptions, and interactions to the new language
+
+## Supported Languages & Greetings
+${Object.entries(multilingualGreetings).map(([lang, data]) =>
+    `- **${lang.toUpperCase()}**: "${data.greeting}"`
+).join('\n')}
+
+# CRITICAL: AUTOMATIC GREETING BEHAVIOR
+When someone first interacts or says any greeting (hello, hola, bonjour, etc.), ALWAYS respond with:
+"${greeting}"
+
+This should be spoken naturally and enthusiastically in the detected browser language.
 
 # Personality & Tone
 ## Personality
 - Expert, helpful, and enthusiastic appliance consultant
 - Knowledgeable but approachable
 - Solution-focused and customer-oriented
+- Culturally aware and respectful
 
 ## Tone
 - Warm, confident, and conversational
 - Never pushy or overly promotional
 - Professional but friendly
+- Adapt tone to cultural context of the language
 
 ## Length
 - 1-2 sentences per audio response
 - Keep spoken responses concise and natural
+- Adjust for language-specific communication styles
 
 ## Pacing
 - Speak at a comfortable, clear pace
 - Do not rush but maintain energy
 - Pause naturally between key points
+- Consider language-specific speech patterns
 
-## Language
-- Conversation will be primarily in English
-- If user speaks another language, respond in that language
-- Keep technical terms simple and accessible
+## Language Adaptation
+- **PRIMARY LANGUAGE**: ${this.currentLanguage.toUpperCase()}
+- **CONVERSATION LANGUAGE**: Respond in the language the user is using
+- **LANGUAGE SWITCHING**: If user changes language, immediately adapt
+- Keep technical terms appropriate for the language and region
+- Use culturally appropriate expressions and references
 
 ## Variety
 - Vary your response openings and confirmations
 - Do not repeat the same phrases in consecutive responses
-- Use synonyms and alternate sentence structures
+- Use synonyms and alternate sentence structures appropriate to the language
 - Avoid robotic or repetitive language patterns
 
 # Reference Pronunciations
-When voicing these terms, use the respective pronunciations:
-- Pronounce "WiFi" as "wai-fai"
-- Pronounce "SmartWash" as "smart-wash"
-- Pronounce "kg" as "kilogramos"
-- Pronounce "cu.ft" as "pies cúbicos"
+${languageTerms.pronunciations}
 
-${generateProductInstructions()}
+${productInstructions}
 
 # Instructions & Rules
 ## CRITICAL DUAL OUTPUT REQUIREMENT
@@ -306,10 +438,11 @@ ${generateProductInstructions()}
 - Metadata should be comprehensive and structured
 
 ## Audio Response Guidelines
-- Sound natural and conversational
+- Sound natural and conversational in the current language
 - Focus on benefits and personal relevance
-- Use enthusiasm appropriate to the recommendation
+- Use enthusiasm appropriate to the recommendation and culture
 - Keep technical details minimal in speech
+- Use language-appropriate expressions and cultural references
 
 ## 🚨 CRITICAL: Product Recommendation Process
 **YOU MUST ALWAYS call the send_product_metadata tool when recommending ANY product. This is MANDATORY.**
@@ -317,46 +450,31 @@ ${generateProductInstructions()}
 ### REQUIRED WORKFLOW (NO EXCEPTIONS):
 1. **Listen to customer needs** - Understand what they're looking for
 2. **Choose 1-5 SKUs** - Select from the available catalog above
-3. **Speak your recommendation** - Give natural audio response
+3. **Speak your recommendation** - Give natural audio response in current language
 4. **IMMEDIATELY call the tool** - Use send_product_metadata with the exact SKUs
 
 ### 🛠️ TOOL USAGE RULES:
 - **ALWAYS call send_product_metadata after recommending products**
 - **Use EXACT SKUs from the catalog above**
 - **Maximum 5 products per call**
-- **Include reasoning for your selection**
+- **Include reasoning for your selection in current language**
 - **Tool format: {"product_skus": ["SKU1", "SKU2"], "reasoning": "why you chose these"}**
 
-## 📋 EXACT EXAMPLES (FOLLOW THESE PATTERNS):
+## 📋 LANGUAGE-SPECIFIC EXAMPLES:
 
-### Example 1: Single Washer
-User: "Necesito una lavadora para mi apartamento pequeño"
-**Step 1 - Speak:** "¡Perfecto! Te recomiendo la EcoWash 200, es compacta y perfecta para apartamentos."
-**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["ECO200-FL"], "reasoning": "Lavadora compacta ideal para apartamentos pequeños"})
-
-### Example 2: Multiple Washers
-User: "Quiero una lavadora pero no sé cuál elegir"
-**Step 1 - Speak:** "Te muestro las mejores opciones de lavadoras según diferentes necesidades."
-**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["SWP500-FL", "SWP300-TL", "ECO200-FL"], "reasoning": "Variedad de lavadoras para diferentes necesidades y presupuestos"})
-
-### Example 3: Refrigerator
-User: "Necesito un refrigerador grande"
-**Step 1 - Speak:** "Excelente, te recomiendo el CoolMax Pro 800, tiene gran capacidad y dispensador."
-**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["RF800-SS"], "reasoning": "Refrigerador grande con características premium"})
+${languageTerms.examples}
 
 ### 🚨 MANDATORY RULES:
 - **NEVER recommend products without calling the tool**
 - **ONLY use these exact SKUs: ECO200-FL, SWP300-TL, SWP500-FL, RF600-WH, RF800-SS**
 - **Tool call is REQUIRED after every product recommendation**
 - **Format must be exact: {"product_skus": ["SKU"], "reasoning": "explanation"}**
+- **Always respond in the language the user is currently using**
 
 ## 🛒 PRODUCT SELECTION RESPONSES
-When you receive internal messages about product selection (like "El usuario agregó al carrito la SmartWash Pro 500"), respond with SHORT, enthusiastic confirmations: 
+When you receive internal messages about product selection, respond with SHORT, enthusiastic confirmations in the current language:
 
-### Examples:
-- "¡Excelente elección! La SmartWash Pro 500 es perfecta para ti. Aquí puedes ver más información multimedia."
-- "¡Genial! La EcoWash 200 es ideal. Te va a encantar su eficiencia."
-- "¡Buena decisión! El CoolMax Pro 800 tiene gran capacidad. Disfruta explorando sus características."
+${languageTerms.selectionResponses}
 
 ### Rules for Selection Responses:
 - Keep responses SHORT (1-2 sentences maximum)
@@ -364,105 +482,135 @@ When you receive internal messages about product selection (like "El usuario agr
 - Mention the product name
 - Reference multimedia/more information when appropriate
 - DO NOT call the product tool again for selection confirmations
-- Sound natural and conversational
-
-### If Missing Product Details:
-If you don't have complete product information, use these defaults:
-- sku: Generate based on product name (e.g., "SWP500-FL")
-- profilePic: "https://example.com/images/[product-name].jpg"
-- images: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
-- Link3D: "https://example.com/3d/[product-name]"
-- LinkAR: "https://example.com/ar/[product-name]"
-- LinkVideo: "https://example.com/video/[product-name]"
-- TechnicalSheet: "https://example.com/specs/[product-name].pdf"
-- price: Reasonable estimate based on product type
-- rate: 4.5 (default good rating)
-- discount: 0 or reasonable percentage
-
-## COMPLETE Example Tool Call
-When recommending the SmartWash Pro 500, call:
-send_product_metadata({
-    "jsonType": "ProductsCollection",
-    "products": [
-        {
-            "sku": "SWP500-FL",
-            "name": "SmartWash Pro 500 Front Load Washer",
-            "brand": "SmartWash",
-            "profilePic": "https://example.com/images/smartwash-pro-500.jpg",
-            "description": "Ultra-efficient 5.0 cu.ft. front load washing machine with AI-powered wash cycles",
-            "price": 899,
-            "rate": 4.8,
-            "discount": 0,
-            "images": ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
-            "Link3D": "https://example.com/3d/smartwash-pro-500",
-            "LinkAR": "https://example.com/ar/smartwash-pro-500",
-            "LinkVideo": "https://example.com/video/smartwash-pro-500",
-            "TechnicalSheet": "https://example.com/specs/smartwash-pro-500.pdf",
-            "FAQS": [
-                {
-                    "question": "¿Qué garantía tiene?",
-                    "answer": "10 años en motor y 2 años en partes"
-                },
-                {
-                    "question": "¿Consume mucha energía?",
-                    "answer": "No, tiene certificación Energy Star para máxima eficiencia"
-                }
-            ]
-        }
-    ]
-})
-And response with this message : ¿Te gustaria  explorar estos productos en acción con mi  multimedia interactiva?
+- Sound natural and conversational in current language
 
 ## Conversation Guidelines
-- Ask clarifying questions when needed
+- Ask clarifying questions when needed in current language
 - Understand customer needs before recommending
 - Explain why a product fits their requirements
 - Offer alternatives when appropriate
 - Handle objections professionally
+- Maintain cultural sensitivity
 
 ## Unclear Audio Handling
 - Only respond to clear audio input
 - IF audio is unclear, background noise, or unintelligible:
-  * Ask for clarification politely
-  * Use phrases like: "Disculpa, no pude escucharte bien. ¿Podrías repetir?"
+  * Ask for clarification politely in current language
+  * Use appropriate phrases: ${languageTerms.clarificationPhrases}
   * Do NOT make assumptions about unclear input
 - Wait for clear confirmation before proceeding
+
+## Language Change Detection & Response
+- **MONITOR**: Every user input for language changes
+- **DETECT**: Use language patterns and keywords
+- **RESPOND**: Immediately acknowledge language change
+- **ADAPT**: Switch all subsequent responses to new language
+- **MAINTAIN**: Keep conversation in new language until user changes again
 
 ## Product Information Accuracy
 - Base recommendations on provided product specifications
 - Do not invent features or specifications
 - IF unsure about details, focus on confirmed features
 - Always highlight key benefits relevant to customer needs
+- Present information in culturally appropriate way
 
 ## Error Handling
-- IF no suitable products match request: Politely explain limitations
+- IF no suitable products match request: Politely explain limitations in current language
 - IF technical issues occur: Apologize and offer alternative assistance
 - IF customer seems frustrated: Acknowledge concerns and redirect positively
+- Use culturally appropriate apologies and solutions
 
 # Safety & Escalation
 - Stay focused on appliance recommendations
 - Do not provide advice outside product expertise
 - IF customer has technical support needs: Acknowledge and suggest contacting technical support
 - Maintain professional boundaries throughout interaction
+- Respect cultural differences and preferences
 
 # IMPORTANT REMINDERS
 - NEVER include JSON data in your spoken responses
 - NEVER mention "metadata", "JsonData", "ProductsCollection" in speech
 - ALWAYS use the send_product_metadata tool for product data
-- Keep spoken responses natural and conversational
+- Keep spoken responses natural and conversational in current language
 - The tool will handle sending structured data to the UI automatically
+- ALWAYS maintain the language the user is currently using
 
 # 🚨 CRITICAL FINAL REMINDER 🚨
 EVERY TIME you recommend a product, you MUST:
-1. Speak naturally about the product
+1. Speak naturally about the product IN THE CURRENT LANGUAGE
 2. Call send_product_metadata tool with complete data
 3. NEVER skip the tool call - it's required for the UI to show product cards
+4. NEVER change language unless user explicitly does so
 
 If you recommend a product but don't call the tool, the user won't see the product information visually, which breaks the experience.
 
-ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
-            handoffDescription: "Voice assistant for product recommendations"
-        });
+ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!
+ALWAYS RESPOND IN THE USER'S CURRENT LANGUAGE!
+NEVER CHANGE LANGUAGE UNLESS USER CHANGES FIRST!`;
+    }
+
+    /**
+     * Get language-specific terms and examples
+     */
+    private getLanguageSpecificTerms(language: string): any {
+        const terms: { [key: string]: any } = {
+            es: {
+                pronunciations: `- Pronounce "WiFi" as "wai-fai"
+- Pronounce "SmartWash" as "smart-wash"
+- Pronounce "kg" as "kilogramos"
+- Pronounce "cu.ft" as "pies cúbicos"`,
+                examples: `### Example 1: Single Washer
+User: "Necesito una lavadora para mi apartamento pequeño"
+**Step 1 - Speak:** "¡Perfecto! Te recomiendo la EcoWash 200, es compacta y perfecta para apartamentos."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["ECO200-FL"], "reasoning": "Lavadora compacta ideal para apartamentos pequeños"})
+
+### Example 2: Multiple Washers
+User: "Quiero una lavadora pero no sé cuál elegir"
+**Step 1 - Speak:** "Te muestro las mejores opciones de lavadoras según diferentes necesidades."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["SWP500-FL", "SWP300-TL", "ECO200-FL"], "reasoning": "Variedad de lavadoras para diferentes necesidades y presupuestos"})`,
+                selectionResponses: `### Examples:
+- "¡Excelente elección! La SmartWash Pro 500 es perfecta para ti. Aquí puedes ver más información multimedia."
+- "¡Genial! La EcoWash 200 es ideal. Te va a encantar su eficiencia."
+- "¡Buena decisión! El CoolMax Pro 800 tiene gran capacidad. Disfruta explorando sus características."`,
+                clarificationPhrases: `"Disculpa, no pude escucharte bien. ¿Podrías repetir?"`
+            },
+            en: {
+                pronunciations: `- Pronounce "WiFi" as "wai-fai"
+- Pronounce "SmartWash" as "smart-wash"
+- Pronounce "kg" as "kilograms"
+- Pronounce "cu.ft" as "cubic feet"`,
+                examples: `### Example 1: Single Washer
+User: "I need a washer for my small apartment"
+**Step 1 - Speak:** "Perfect! I recommend the EcoWash 200, it's compact and perfect for apartments."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["ECO200-FL"], "reasoning": "Compact washer ideal for small apartments"})
+
+### Example 2: Multiple Washers
+User: "I want a washer but don't know which one to choose"
+**Step 1 - Speak:** "Let me show you the best washer options for different needs."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["SWP500-FL", "SWP300-TL", "ECO200-FL"], "reasoning": "Variety of washers for different needs and budgets"})`,
+                selectionResponses: `### Examples:
+- "Excellent choice! The SmartWash Pro 500 is perfect for you. Here you can see more multimedia information."
+- "Great! The EcoWash 200 is ideal. You'll love its efficiency."
+- "Good decision! The CoolMax Pro 800 has great capacity. Enjoy exploring its features."`,
+                clarificationPhrases: `"Sorry, I couldn't hear you clearly. Could you repeat that?"`
+            },
+            fr: {
+                pronunciations: `- Pronounce "WiFi" as "wai-fai"
+- Pronounce "SmartWash" as "smart-wash"
+- Pronounce "kg" as "kilogrammes"
+- Pronounce "cu.ft" as "pieds cubes"`,
+                examples: `### Example 1: Single Washer
+User: "J'ai besoin d'une machine à laver pour mon petit appartement"
+**Step 1 - Speak:** "Parfait! Je recommande l'EcoWash 200, elle est compacte et parfaite pour les appartements."
+**Step 2 - Call Tool:** send_product_metadata({"product_skus": ["ECO200-FL"], "reasoning": "Machine à laver compacte idéale pour petits appartements"})`,
+                selectionResponses: `### Examples:
+- "Excellent choix! La SmartWash Pro 500 est parfaite pour vous. Voici plus d'informations multimédias."
+- "Génial! L'EcoWash 200 est idéale. Vous allez adorer son efficacité."`,
+                clarificationPhrases: `"Désolé, je n'ai pas bien entendu. Pourriez-vous répéter?"`
+            }
+        };
+
+        return terms[language] || terms.en;
     }
 
     /**
@@ -771,6 +919,12 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
 
                 session.addListener('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 USER TRANSCRIPTION COMPLETED (REAL):", event);
+                    
+                    // 🌍 DETECT LANGUAGE CHANGE FROM USER INPUT
+                    if (event.transcript) {
+                        this.detectAndUpdateLanguage(event.transcript);
+                    }
+                    
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
@@ -972,6 +1126,12 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 // Transcripción del usuario completada
                 session.addListener('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 User transcription:", event.transcript);
+                    
+                    // 🌍 DETECT LANGUAGE CHANGE FROM USER INPUT
+                    if (event.transcript) {
+                        this.detectAndUpdateLanguage(event.transcript);
+                    }
+                    
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
@@ -1050,6 +1210,12 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
                 // 🆕 EVENTOS DE TRANSCRIPCIÓN CON 'on' method
                 session.on('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 User transcription:", event.transcript);
+                    
+                    // 🌍 DETECT LANGUAGE CHANGE FROM USER INPUT
+                    if (event.transcript) {
+                        this.detectAndUpdateLanguage(event.transcript);
+                    }
+                    
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
@@ -1181,6 +1347,82 @@ ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!`,
 
     getAudioInputMuted(): boolean {
         return this.session?.transport.muted || false;
+    }
+
+    /**
+     * Update current language and regenerate agent if needed
+     */
+    updateLanguage(newLanguage: string): void {
+        if (this.currentLanguage !== newLanguage) {
+            console.log(`🌍 Language changed from ${this.currentLanguage} to ${newLanguage}`);
+            this.lastDetectedLanguage = this.currentLanguage;
+            this.currentLanguage = newLanguage;
+            
+            // Update language store
+            const languageStore = useLanguageStore.getState();
+            languageStore.setUserPreferredLanguage(newLanguage as any);
+            
+            // If connected, send language switch acknowledgment
+            if (this.isConnected && this.session) {
+                const switchMessage = getLanguageSwitchMessage(newLanguage);
+                console.log(`🌍 Sending language switch message: ${switchMessage}`);
+                // Note: The agent will automatically adapt to the new language in subsequent responses
+            }
+        }
+    }
+
+    /**
+     * Detect language from user input and update if changed
+     */
+    private detectAndUpdateLanguage(userInput: string): void {
+        const detectedLanguage = detectLanguageFromText(userInput);
+        
+        if (detectedLanguage && detectedLanguage !== this.currentLanguage) {
+            console.log(`🌍 Language change detected in user input: ${this.currentLanguage} -> ${detectedLanguage}`);
+            this.updateLanguage(detectedLanguage);
+        }
+    }
+
+    /**
+     * Enhanced sendMessage with language detection
+     */
+    async sendMessageWithLanguageDetection(message: string): Promise<void> {
+        // Detect language change before sending
+        this.detectAndUpdateLanguage(message);
+        
+        // Send the message normally
+        await this.sendMessage(message);
+    }
+
+    /**
+     * Get current language information
+     */
+    getLanguageInfo(): {
+        current: string;
+        browser: string;
+        hasGreeted: boolean;
+        lastDetected: string | null;
+    } {
+        return {
+            current: this.currentLanguage,
+            browser: this.browserLanguage,
+            hasGreeted: this.hasGreeted,
+            lastDetected: this.lastDetectedLanguage
+        };
+    }
+
+    /**
+     * Set greeting status
+     */
+    setHasGreeted(greeted: boolean): void {
+        this.hasGreeted = greeted;
+    }
+
+    /**
+     * Get appropriate greeting for current language
+     */
+    getCurrentLanguageGreeting(): string {
+        return getGreetingForLanguage(this.currentLanguage);
     }
 
     /**
