@@ -16,6 +16,7 @@ import "swiper/css/navigation";
 import { Navigation, Autoplay, Pagination } from "swiper/modules";
 import { dataLanguage } from "@/languajes/data";
 import { useLanguageStore } from '@/store/useLanguageStore'
+import { useRefElementsStore } from '@/store/RefElements'
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -41,6 +42,8 @@ export function ChatMessages({
   const [showPolicy, setShowPolicy] = useState(true);
   const policyRef = useRef<HTMLDivElement>(null);
   const { languageCurrent } = useLanguageStore()
+
+  const { setHiddenMessagePolitices } = useRefElementsStore()
 
   /** Manejador cierre */
   const handleClose = () => {
@@ -70,6 +73,10 @@ export function ChatMessages({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, currentUserTranscript])
 
+  useEffect(() => {
+    setHiddenMessagePolitices(policyRef.current)
+  }, [])
+
   return (
     <div className="overflow-y-auto p-4 space-y-4">
 
@@ -88,14 +95,16 @@ export function ChatMessages({
             >
               X
             </h1>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1" >
               <p className="text-[10px] text-center w-[95%] flex flex-col gap-2 mx-auto">
                 {
+                  //@ts-ignore
                   languageCurrent && dataLanguage.chatMessage[languageCurrent][0]
                 }
                 <br></br>
                 <span className='w-full bg-white/70 font-bold p-1 rounded-sm'>
                   {
+                    //@ts-ignore
                     languageCurrent && dataLanguage.chatMessage[languageCurrent][1]
                   }
                 </span>
@@ -134,6 +143,7 @@ export function ChatMessages({
                       <SwiperSlide key={idx}>
                         <ProductCard
                           product={item}
+                          position={idx}
                           onMultimediaClick={() => onMultimediaClick?.(item.name || "")}
                           onProductSelect={onProductSelect}
                         />

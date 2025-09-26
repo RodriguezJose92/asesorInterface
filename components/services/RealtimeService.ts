@@ -2,7 +2,7 @@ import { RealtimeSession, RealtimeAgent } from '@openai/agents-realtime';
 import SessionService from './SessionService';
 import productsCatalog from '../../utils/products-catalog.json';
 import { error } from 'console';
-import { useLanguageStore } from '../../store/useLanguageStore';
+import { LanguageCode, useLanguageStore } from '../../store/useLanguageStore';
 import {
     multilingualGreetings,
     getGreetingForLanguage,
@@ -10,6 +10,9 @@ import {
     getLanguageSwitchMessage,
     detectLanguageFromText
 } from '../../utils/multilingualGreetings';
+import { EventBusService, EventTypes } from '@/lib/events';
+import { I3DContent, IMultimediaContent } from '@/lib/events/EventPayloads';
+import { ProductInfo } from '@/lib/types';
 
 /**
  * RealtimeService - Manages OpenAI Realtime API connections
@@ -71,7 +74,7 @@ class RealtimeService {
             const languageStore = useLanguageStore.getState();
             this.browserLanguage = languageStore.detectBrowserLanguage();
             this.currentLanguage = languageStore.getEffectiveLanguage();
-            
+
             console.log(`🌍 Language initialized - Browser: ${this.browserLanguage}, Current: ${this.currentLanguage}`);
         }
     }
@@ -90,65 +93,6 @@ class RealtimeService {
      * Creates a basic RealtimeAgent configuration
      */
     private createAgent(): RealtimeAgent<any> {
-        // Generar instrucciones dinámicamente desde el catálogo JSON
-        const generateProductInstructions = () => {
-            let instructions = `# Context - Complete Product Knowledge Base\n`;
-
-            // Agrupar productos por categoría
-            const categories: { [key: string]: any[] } = {};
-            productsCatalog.products.forEach((product: any) => {
-                if (!categories[product.category]) {
-                    categories[product.category] = [];
-                }
-                categories[product.category].push(product);
-            });
-
-            // Generar secciones por categoría
-            Object.keys(categories).forEach(category => {
-                const categoryName = category.toUpperCase();
-                instructions += `\n## ${categoryName}\n`;
-
-                categories[category].forEach((product: any, index: number) => {
-                    const finalPrice = product.price * (1 - product.discount / 100);
-                    instructions += `\n### ${index + 1}. ${product.sku} - ${product.name}\n`;
-                    instructions += `- **Price**: $${product.price} (${product.discount}% discount = $${finalPrice.toFixed(2)} final price)\n`;
-                    instructions += `- **Rating**: ${product.rate}/5 stars\n`;
-                    instructions += `- **Capacity**: ${product.capacity}\n`;
-                    instructions += `- **Type**: ${product.type}\n`;
-                    instructions += `- **Brand**: ${product.brand}\n`;
-                    instructions += `- **Key Features**: ${product.features.join(', ')}\n`;
-                    instructions += `- **Description**: ${product.description}\n`;
-
-                    if (product.FAQS && product.FAQS.length > 0) {
-                        instructions += `- **Common Questions**:\n`;
-                        product.FAQS.forEach((faq: any) => {
-                            instructions += `  * ${faq.question} → ${faq.answer}\n`;
-                        });
-                    }
-                    instructions += `\n`;
-                });
-            });
-
-            // Agregar matriz de decisión
-            instructions += `\n## DECISION MATRIX - Use This to Choose Products\n`;
-            instructions += `**Available SKUs**: ${productsCatalog.products.map((p: any) => p.sku).join(', ')}\n`;
-            instructions += `**By Budget**: \n`;
-
-            const sortedByPrice = [...productsCatalog.products].sort((a: any, b: any) => a.price - b.price);
-            sortedByPrice.forEach((product: any) => {
-                const finalPrice = product.price * (1 - product.discount / 100);
-                instructions += `- $${finalPrice.toFixed(2)}: ${product.sku} (${product.name})\n`;
-            });
-
-            instructions += `\n**By Category**: \n`;
-            Object.keys(categories).forEach(category => {
-                const skus = categories[category].map((p: any) => p.sku).join(', ');
-                instructions += `- ${category}: ${skus}\n`;
-            });
-
-            return instructions;
-        };
-
         return new RealtimeAgent({
             name: "VoiceAssistant",
             tools: [
@@ -178,105 +122,411 @@ class RealtimeService {
                         },
                         required: ["product_skus"]
                     },
-                    invoke: async (args: any) => {
-                        console.log("🛠️ Tool send_product_metadata invoked with:", args);
-                        console.log("🛠️ Args type:", typeof args);
-                        console.log("🛠️ Args keys:", Object.keys(args || {}));
-
-                        // 🔍 EXTRAER ARGUMENTOS DEL CONTEXTO
-                        let toolArgs = args;
-
-                        // Si recibimos un RunContext, extraer los argumentos del último function_call
-                        if (args && args.context && args.context.history) {
-                            console.log("🔍 Detected RunContext, extracting arguments from history");
-                            const history = args.context.history;
-                            const lastFunctionCall = history.reverse().find((item: any) =>
-                                item.type === 'function_call' && item.name === 'send_product_metadata'
-                            );
-
-                            if (lastFunctionCall && lastFunctionCall.arguments) {
-                                console.log("🔍 Found function call arguments:", lastFunctionCall.arguments);
-                                try {
-                                    toolArgs = JSON.parse(lastFunctionCall.arguments);
-                                    console.log("🔍 Parsed tool arguments:", toolArgs);
-                                } catch (parseError) {
-                                    console.error("🔍 Error parsing function call arguments:", parseError);
-                                }
-                            }
-                        }
-
-                        console.log("🛠️ Final tool args:", toolArgs);
-                        console.log("🛠️ product_skus value:", toolArgs?.product_skus);
-                        console.log("🛠️ product_skus type:", typeof toolArgs?.product_skus);
-                        console.log("🛠️ product_skus is array:", Array.isArray(toolArgs?.product_skus));
-
-                        // Obtener la instancia del servicio para acceder a los callbacks
-                        const serviceInstance = RealtimeService.getInstance();
-
-                        // Función para buscar productos por SKU
-                        const findProductsBySku = (skus: string[]) => {
-                            const foundProducts = [];
-                            for (const sku of skus) {
-                                const product = productsCatalog.products.find(p => p.sku === sku);
-                                if (product) {
-                                    foundProducts.push(product);
-                                } else {
-                                    console.warn(`🛠️ Product with SKU ${sku} not found in catalog`);
-                                }
-                            }
-                            return foundProducts;
-                        };
-
-                        let products = [];
-                        let reasoning = "";
-
-                        // Verificar si tenemos SKUs en los argumentos
-                        if (toolArgs && toolArgs.product_skus && Array.isArray(toolArgs.product_skus) && toolArgs.product_skus.length > 0) {
-                            console.log("🛠️ Processing SKUs:", toolArgs.product_skus);
-                            products = findProductsBySku(toolArgs.product_skus);
-                            reasoning = toolArgs.reasoning || "Productos seleccionados basados en tus necesidades";
-                            console.log(`🛠️ Found ${products.length} products from ${toolArgs.product_skus.length} SKUs`);
-                        } else {
-                            // ❌ NO FALLBACK: El agente DEBE enviar SKUs
-                            console.error("🛠️ ERROR: No SKUs provided by agent. Tool requires product_skus array.");
-                            console.error("🛠️ Agent must call tool with: {\"product_skus\": [\"SKU1\", \"SKU2\"], \"reasoning\": \"explanation\"}");
-
-                            return {
-                                success: false,
-                                message: "Error: No product SKUs provided. Agent must specify which products to recommend."
-                            };
-                        }
-
-                        console.log("🛠️ Final products to send:", products.map(p => ({ sku: p.sku, name: p.name })));
-
-                        // Formatear los datos para que coincidan con lo que espera el componente
-                        const formattedMetadata = {
-                            JsonData: {
-                                jsonType: "ProductsCollection",
-                                products: products
-                            },
-                            TextMessage: reasoning
-                        };
-
-                        console.log("🛠️ Sending formatted metadata:", {
-                            jsonType: formattedMetadata.JsonData.jsonType,
-                            productsCount: formattedMetadata.JsonData.products.length,
-                            textMessage: formattedMetadata.TextMessage
-                        });
-
-                        // Enviar la metadata a través del callback usando el método público
-                        serviceInstance.triggerMetadataCallback(formattedMetadata);
-
-                        return {
-                            success: true,
-                            message: `Product metadata sent successfully for ${products.length} products`
-                        };
-                    }
-                }
+                    invoke: this.handleSendProductMetadata.bind(this)
+                },
+                this.createShowMultimediaTool(),
+                this.createShow3DTool()
             ],
             instructions: this.generateMultilingualInstructions(),
             handoffDescription: "Voice assistant for product recommendations"
         });
+    }
+
+    /**
+     * Creates the tool for showing multimedia content
+     */
+    private createShowMultimediaTool() {
+        return {
+            type: "function" as const,
+            name: "show_multimedia",
+            description: "Show multimedia content (video, images, gallery) for a product. Use when user wants to see product videos, image galleries, or other multimedia content.",
+            strict: false,
+            needsApproval: async () => false,
+            parameters: {
+                type: "object" as const,
+                additionalProperties: false,
+                properties: {
+                    product_sku: {
+                        type: "string" as const,
+                        description: "Product SKU to show multimedia for"
+                    },
+                    content_type: {
+                        type: "string" as const,
+                        enum: ["video", "gallery", "images", "carousel"],
+                        description: "Type of multimedia content to show"
+                    },
+                    title: {
+                        type: "string" as const,
+                        description: "Optional title for the multimedia display"
+                    }
+                },
+                required: ["product_sku", "content_type"]
+            },
+            invoke: this.handleShowMultimedia.bind(this)
+        };
+    }
+
+    /**
+     * Creates the tool for showing 3D content
+     */
+    private createShow3DTool() {
+        return {
+            type: "function" as const,
+            name: "show_3d",
+            description: "Show 3D visualization for a product. Use when user wants to see 3D model, AR view, or 360° view of a product.",
+            strict: false,
+            needsApproval: async () => false,
+            parameters: {
+                type: "object" as const,
+                additionalProperties: false,
+                properties: {
+                    product_sku: {
+                        type: "string" as const,
+                        description: "Product SKU to show 3D content for"
+                    },
+                    view_type: {
+                        type: "string" as const,
+                        enum: ["3d-model", "360-view", "ar-view"],
+                        description: "Type of 3D view to show"
+                    },
+                    title: {
+                        type: "string" as const,
+                        description: "Optional title for the 3D display"
+                    }
+                },
+                required: ["product_sku", "view_type"]
+            },
+            invoke: this.handleShow3D.bind(this)
+        };
+    }
+
+    /**
+     * Handle send product metadata tool
+     */
+    private async handleSendProductMetadata(args: any) {
+        console.log("🛠️ Tool send_product_metadata invoked with:", args);
+        console.log("🛠️ Args type:", typeof args);
+        console.log("🛠️ Args keys:", Object.keys(args || {}));
+
+        // 🔍 EXTRAER ARGUMENTOS DEL CONTEXTO
+        let toolArgs = args;
+
+        // Si recibimos un RunContext, extraer los argumentos del último function_call
+        if (args && args.context && args.context.history) {
+            console.log("🔍 Detected RunContext, extracting arguments from history");
+            const history = args.context.history;
+            const lastFunctionCall = history.reverse().find((item: any) =>
+                item.type === 'function_call' && item.name === 'send_product_metadata'
+            );
+
+            if (lastFunctionCall && lastFunctionCall.arguments) {
+                console.log("🔍 Found function call arguments:", lastFunctionCall.arguments);
+                try {
+                    toolArgs = JSON.parse(lastFunctionCall.arguments);
+                    console.log("🔍 Parsed tool arguments:", toolArgs);
+                } catch (parseError) {
+                    console.error("🔍 Error parsing function call arguments:", parseError);
+                }
+            }
+        }
+
+        console.log("🛠️ Final tool args:", toolArgs);
+        console.log("🛠️ product_skus value:", toolArgs?.product_skus);
+        console.log("🛠️ product_skus type:", typeof toolArgs?.product_skus);
+        console.log("🛠️ product_skus is array:", Array.isArray(toolArgs?.product_skus));
+
+        // Obtener la instancia del servicio para acceder a los callbacks
+        const serviceInstance = RealtimeService.getInstance();
+
+        // Función para buscar productos por SKU
+        const findProductsBySku = (skus: string[]) => {
+            const foundProducts = [];
+            for (const sku of skus) {
+                const product = productsCatalog.products.find(p => p.sku === sku);
+                if (product) {
+                    foundProducts.push(product);
+                } else {
+                    console.warn(`🛠️ Product with SKU ${sku} not found in catalog`);
+                }
+            }
+            return foundProducts;
+        };
+
+        let products = [];
+        let reasoning = "";
+
+        // Verificar si tenemos SKUs en los argumentos
+        if (toolArgs && toolArgs.product_skus && Array.isArray(toolArgs.product_skus) && toolArgs.product_skus.length > 0) {
+            console.log("🛠️ Processing SKUs:", toolArgs.product_skus);
+            products = findProductsBySku(toolArgs.product_skus);
+            reasoning = toolArgs.reasoning || "Productos seleccionados basados en tus necesidades";
+            console.log(`🛠️ Found ${products.length} products from ${toolArgs.product_skus.length} SKUs`);
+        } else {
+            // ❌ NO FALLBACK: El agente DEBE enviar SKUs
+            console.error("🛠️ ERROR: No SKUs provided by agent. Tool requires product_skus array.");
+            console.error("🛠️ Agent must call tool with: {\"product_skus\": [\"SKU1\", \"SKU2\"], \"reasoning\": \"explanation\"}");
+
+            return {
+                success: false,
+                message: "Error: No product SKUs provided. Agent must specify which products to recommend."
+            };
+        }
+
+        console.log("🛠️ Final products to send:", products.map(p => ({ sku: p.sku, name: p.name })));
+
+        // Formatear los datos para que coincidan con lo que espera el componente
+        const formattedMetadata = {
+            JsonData: {
+                jsonType: "ProductsCollection",
+                products: products
+            },
+            TextMessage: reasoning
+        };
+
+        console.log("🛠️ Sending formatted metadata:", {
+            jsonType: formattedMetadata.JsonData.jsonType,
+            productsCount: formattedMetadata.JsonData.products.length,
+            textMessage: formattedMetadata.TextMessage
+        });
+
+        // Enviar la metadata a través del callback usando el método público
+        serviceInstance.triggerMetadataCallback(formattedMetadata);
+
+        return {
+            success: true,
+            message: `Product metadata sent successfully for ${products.length} products`
+        };
+    }
+
+    /**
+     * Handle show multimedia tool
+     */
+    private async handleShowMultimedia(args: any) {
+        console.log("🎥 Tool show_multimedia invoked with:", args);
+        
+        // Extract arguments from context if needed
+        let toolArgs = this.extractToolArgs(args, 'show_multimedia');
+
+        if (!toolArgs || !toolArgs.product_sku || !toolArgs.content_type) {
+            console.error("🎥 ERROR: Missing required parameters for multimedia tool");
+            return {
+                success: false,
+                message: "Error: product_sku and content_type are required parameters"
+            };
+        }
+
+        // Find product by SKU
+        const product = this.findProductBySku(toolArgs.product_sku);
+        if (!product) {
+            console.error(`🎥 Product with SKU ${toolArgs.product_sku} not found`);
+            return {
+                success: false,
+                message: `Product with SKU ${toolArgs.product_sku} not found`
+            };
+        }
+
+        // Create multimedia content payload
+        const multimediaContent: IMultimediaContent = {
+            type: this.mapContentTypeToMultimedia(toolArgs.content_type),
+            source: this.getMultimediaSourceForProduct(product, toolArgs.content_type),
+            title: toolArgs.title || `${product.name} - ${toolArgs.content_type}`,
+            description: product.description,
+            thumbnail: product.profilePic,
+            settings: {
+                autoPlay: false,
+                controls: true,
+                gallery: {
+                    showThumbnails: true,
+                    enableFullscreen: true,
+                    showNavigation: true
+                }
+            },
+            display: {
+                mode: 'modal',
+                size: 'large',
+                closable: true
+            }
+        };
+
+        // Get EventBus instance and emit event
+        try {
+            console.log("🎥 About to get EventBusService instance...");
+            const eventBus = EventBusService.getInstance({ debug: true });
+            console.log("🎥 EventBusService instance obtained:", eventBus);
+            
+            eventBus.emit(EventTypes.SHOW_MULTIMEDIA, {
+                content: multimediaContent,
+                product: product
+            });
+
+            console.log("🎥 Multimedia event emitted successfully:", {
+                type: multimediaContent.type,
+                product: product.sku,
+                title: multimediaContent.title
+            });
+        } catch (error) {
+            console.error("🎥 Error with EventBusService:", error);
+            console.error("🎥 EventBusService available:", typeof EventBusService);
+        }
+
+        return {
+            success: true,
+            message: `Multimedia content displayed for ${product.name}`
+        };
+    }
+
+    /**
+     * Handle show 3D tool
+     */
+    private async handleShow3D(args: any) {
+        console.log("🎮 Tool show_3d invoked with:", args);
+        
+        // Extract arguments from context if needed
+        let toolArgs = this.extractToolArgs(args, 'show_3d');
+ console.log("[EventBus] Prepared 3D content tool args :",toolArgs);
+        if (!toolArgs || !toolArgs.product_sku || !toolArgs.view_type) {
+            console.error("🎮 ERROR: Missing required parameters for 3D tool");
+            return {
+                success: false,
+                message: "Error: product_sku and view_type are required parameters"
+            };
+        }
+
+        // Find product by SKU
+        const product = this.findProductBySku(toolArgs.product_sku);
+         console.log("[EventBus] Prepared 3D content for product :",product);
+        if (!product) {
+            console.error(`🎮 Product with SKU ${toolArgs.product_sku} not found`);
+            return {
+                success: false,
+                message: `Product with SKU ${toolArgs.product_sku} not found`
+            };
+        }
+
+        // Create 3D content payload
+        const threeDContent: I3DContent = {
+            type: toolArgs.view_type as '3d-model' | '360-view' | 'ar-view',
+            source: this.get3DSourceForProduct(product, toolArgs.view_type),
+            title: toolArgs.title || `${product.name} - 3D View`,
+            description: product.description,
+            thumbnail: product.profilePic,
+            settings: {
+                autoRotate: true,
+                enableZoom: true,
+                enablePan: true,
+                background: 'transparent',
+                lighting: 'studio'
+            }
+        };
+
+        console.log("[EventBus] Prepared 3D content:");
+        
+        // Get EventBus instance and emit event
+        try {
+            console.log("🎮 About to get EventBusService instance...");
+            const eventBus = EventBusService.getInstance({ debug: true });
+            console.log("🎮 EventBusService instance obtained:", eventBus);
+            
+            eventBus.emit(EventTypes.SHOW_3D, {
+                content: threeDContent,
+                product: product
+            });
+
+            console.log("🎮 3D event emitted successfully:", {
+                type: threeDContent.type,
+                product: product.sku,
+                title: threeDContent.title
+            });
+        } catch (error) {
+            console.error("🎮 Error with EventBusService:", error);
+            console.error("🎮 EventBusService available:", typeof EventBusService);
+        }
+
+        return {
+            success: true,
+            message: `3D content displayed for ${product.name}`
+        };
+    }
+
+    /**
+     * Extract tool arguments from context
+     */
+    private extractToolArgs(args: any, toolName: string): any {
+        let toolArgs = args;
+
+        // Si recibimos un RunContext, extraer los argumentos del último function_call
+        if (args && args.context && args.context.history) {
+            console.log(`🔍 Detected RunContext for ${toolName}, extracting arguments from history`);
+            const history = args.context.history;
+            const lastFunctionCall = history.reverse().find((item: any) =>
+                item.type === 'function_call' && item.name === toolName
+            );
+
+            if (lastFunctionCall && lastFunctionCall.arguments) {
+                console.log("🔍 Found function call arguments:", lastFunctionCall.arguments);
+                try {
+                    toolArgs = JSON.parse(lastFunctionCall.arguments);
+                    console.log("🔍 Parsed tool arguments:", toolArgs);
+                } catch (parseError) {
+                    console.error("🔍 Error parsing function call arguments:", parseError);
+                }
+            }
+        }
+
+        return toolArgs;
+    }
+
+    /**
+     * Find product by SKU
+     */
+    private findProductBySku(sku: string): ProductInfo | null {
+        const product = productsCatalog.products.find(p => p.sku === sku);
+        return product || null;
+    }
+
+    /**
+     * Map content type to multimedia type
+     */
+    private mapContentTypeToMultimedia(contentType: string): 'video' | 'audio' | 'image' | 'gallery' | 'carousel' | 'pdf' | 'presentation' {
+        const mapping: { [key: string]: any } = {
+            'video': 'video',
+            'gallery': 'gallery',
+            'images': 'gallery',
+            'carousel': 'carousel'
+        };
+        return mapping[contentType] || 'gallery';
+    }
+
+    /**
+     * Get multimedia source for product
+     */
+    private getMultimediaSourceForProduct(product: any, contentType: string): string | string[] {
+        switch (contentType) {
+            case 'video':
+                return product.LinkVideo || product.images[0]; // Fallback to first image if no video
+            case 'gallery':
+            case 'images':
+            case 'carousel':
+                return product.images || [product.profilePic];
+            default:
+                return product.images || [product.profilePic];
+        }
+    }
+
+    /**
+     * Get 3D source for product
+     */
+    private get3DSourceForProduct(product: any, viewType: string): string {
+        switch (viewType) {
+            case '3d-model':
+                return product.Link3D || product.profilePic; // Fallback to profile pic
+            case 'ar-view':
+                return product.LinkAR || product.Link3D || product.profilePic;
+            case '360-view':
+                return product.Link3D || product.profilePic;
+            default:
+                return product.Link3D || product.profilePic;
+        }
     }
 
     /**
@@ -346,13 +596,13 @@ class RealtimeService {
     private generateMultilingualInstructions(): string {
         const greeting = getGreetingForLanguage(this.currentLanguage);
         const languageDetectedMsg = getLanguageDetectedMessage(this.currentLanguage);
-        
+
         // Get language-specific terms
         const languageTerms = this.getLanguageSpecificTerms(this.currentLanguage);
-        
+
         // Generate product instructions
         const productInstructions = this.generateProductInstructions();
-        
+
         return `# Role & Objective
 You are a knowledgeable voice assistant for a home appliances product catalog.
 Your goal is to help customers find the perfect appliances by providing personalized recommendations through natural conversation.
@@ -377,8 +627,8 @@ Success means delivering both engaging spoken responses AND structured product d
 
 ## Supported Languages & Greetings
 ${Object.entries(multilingualGreetings).map(([lang, data]) =>
-    `- **${lang.toUpperCase()}**: "${data.greeting}"`
-).join('\n')}
+            `- **${lang.toUpperCase()}**: "${data.greeting}"`
+        ).join('\n')}
 
 # CRITICAL: AUTOMATIC GREETING BEHAVIOR
 When someone first interacts or says any greeting (hello, hola, bonjour, etc.), ALWAYS respond with:
@@ -535,16 +785,77 @@ ${languageTerms.selectionResponses}
 - The tool will handle sending structured data to the UI automatically
 - ALWAYS maintain the language the user is currently using
 
-# 🚨 CRITICAL FINAL REMINDER 🚨
+# 🎯 MULTIMEDIA & 3D TOOLS USAGE
+
+## �️ SHOW MULTIMEDIA TOOL
+Use the \`show_multimedia\` tool when customers want to:
+- See product videos
+- View image galleries 
+- See product photos/images
+- Browse product carousel
+
+**Usage Examples:**
+- User: "Show me videos of this washer" → Call: show_multimedia({"product_sku": "SWP500-FL", "content_type": "video"})
+- User: "I want to see more images" → Call: show_multimedia({"product_sku": "RF600-WH", "content_type": "gallery"})
+- User: "Can you show me photos of the refrigerator?" → Call: show_multimedia({"product_sku": "RF800-SS", "content_type": "images"})
+
+**Content Types Available:**
+- "video" - Product demonstration videos
+- "gallery" - Image gallery view
+- "images" - Product photos
+- "carousel" - Sliding image carousel
+
+## 🎮 SHOW 3D TOOL
+Use the \`show_3d\` tool when customers want to:
+- See 3D models of products
+- View products in 360 degrees
+- Experience AR/VR views
+- Interact with 3D visualizations
+
+**Usage Examples:**
+- User: "Show me this in 3D" → Call: show_3d({"product_sku": "ECO200-FL", "view_type": "3d-model"})
+- User: "Can I see a 360 view?" → Call: show_3d({"product_sku": "SWP300-TL", "view_type": "360-view"})
+- User: "Show me in AR" → Call: show_3d({"product_sku": "RF600-WH", "view_type": "ar-view"})
+
+**View Types Available:**
+- "3d-model" - Interactive 3D model
+- "360-view" - 360-degree product view
+- "ar-view" - Augmented reality view
+
+## 🎯 TOOL USAGE WORKFLOW
+1. **Listen for multimedia/3D requests**
+2. **Identify the specific product SKU** (from previous recommendations)
+3. **Choose appropriate tool** (show_multimedia or show_3d)
+4. **Call the tool with correct parameters**
+5. **Give natural spoken confirmation** in current language
+
+**Natural Response Examples:**
+- "¡Perfecto! Te muestro el video del producto ahora."
+- "Great! Let me show you the 3D model right away."
+- "Génial! Voici la vue 360 degrés du produit."
+
+## 🚨 MULTIMEDIA/3D TOOL RULES:
+- **ALWAYS use exact product SKUs** from catalog
+- **Match content/view type to user request**
+- **Provide spoken confirmation** after calling tool
+- **Use tools when appropriate** - don't force if not requested
+- **Complement product recommendations** with multimedia options
+
+# �🚨 CRITICAL FINAL REMINDER 🚨
 EVERY TIME you recommend a product, you MUST:
 1. Speak naturally about the product IN THE CURRENT LANGUAGE
 2. Call send_product_metadata tool with complete data
 3. NEVER skip the tool call - it's required for the UI to show product cards
 4. NEVER change language unless user explicitly does so
 
+ADDITIONALLY, when users request multimedia or 3D content:
+1. Call the appropriate tool (show_multimedia or show_3d)
+2. Use the correct product SKU from previous recommendations
+3. Give natural spoken confirmation in current language
+
 If you recommend a product but don't call the tool, the user won't see the product information visually, which breaks the experience.
 
-ALWAYS CALL THE TOOL WHEN RECOMMENDING PRODUCTS!
+ALWAYS CALL THE APPROPRIATE TOOLS WHEN NEEDED!
 ALWAYS RESPOND IN THE USER'S CURRENT LANGUAGE!
 NEVER CHANGE LANGUAGE UNLESS USER CHANGES FIRST!`;
     }
@@ -569,9 +880,8 @@ User: "Quiero una lavadora pero no sé cuál elegir"
 **Step 1 - Speak:** "Te muestro las mejores opciones de lavadoras según diferentes necesidades."
 **Step 2 - Call Tool:** send_product_metadata({"product_skus": ["SWP500-FL", "SWP300-TL", "ECO200-FL"], "reasoning": "Variedad de lavadoras para diferentes necesidades y presupuestos"})`,
                 selectionResponses: `### Examples:
-- "¡Excelente elección! La SmartWash Pro 500 es perfecta para ti. Aquí puedes ver más información multimedia."
-- "¡Genial! La EcoWash 200 es ideal. Te va a encantar su eficiencia."
-- "¡Buena decisión! El CoolMax Pro 800 tiene gran capacidad. Disfruta explorando sus características."`,
+- Read the example whit de user language's
+- "Excelente elección. Estoy a tu servicio para cualquier pregunta sobre este producto. ¿Quieres que te lo muestre en 3D o en realidad aumentada?"`,
                 clarificationPhrases: `"Disculpa, no pude escucharte bien. ¿Podrías repetir?"`
             },
             en: {
@@ -919,12 +1229,12 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
 
                 session.addListener('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 USER TRANSCRIPTION COMPLETED (REAL):", event);
-                    
+
                     // 🌍 DETECT LANGUAGE CHANGE FROM USER INPUT
                     if (event.transcript) {
                         this.detectAndUpdateLanguage(event.transcript);
                     }
-                    
+
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
@@ -1126,12 +1436,12 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
                 // Transcripción del usuario completada
                 session.addListener('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 User transcription:", event.transcript);
-                    
+
                     // 🌍 DETECT LANGUAGE CHANGE FROM USER INPUT
                     if (event.transcript) {
                         this.detectAndUpdateLanguage(event.transcript);
                     }
-                    
+
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
@@ -1210,12 +1520,12 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
                 // 🆕 EVENTOS DE TRANSCRIPCIÓN CON 'on' method
                 session.on('conversation.item.input_audio_transcription.completed', (event: any) => {
                     console.log("📝 User transcription:", event.transcript);
-                    
+
                     // 🌍 DETECT LANGUAGE CHANGE FROM USER INPUT
                     if (event.transcript) {
                         this.detectAndUpdateLanguage(event.transcript);
                     }
-                    
+
                     if (this.connectionCallbacks.onUserTranscription) {
                         this.connectionCallbacks.onUserTranscription(event.transcript, true);
                     }
@@ -1357,11 +1667,11 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
             console.log(`🌍 Language changed from ${this.currentLanguage} to ${newLanguage}`);
             this.lastDetectedLanguage = this.currentLanguage;
             this.currentLanguage = newLanguage;
-            
+
             // Update language store
             const languageStore = useLanguageStore.getState();
-            languageStore.setUserPreferredLanguage(newLanguage as any);
-            
+            languageStore.setUserPreferredLanguage(newLanguage as LanguageCode);
+
             // If connected, send language switch acknowledgment
             if (this.isConnected && this.session) {
                 const switchMessage = getLanguageSwitchMessage(newLanguage);
@@ -1376,7 +1686,7 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
      */
     private detectAndUpdateLanguage(userInput: string): void {
         const detectedLanguage = detectLanguageFromText(userInput);
-        
+
         if (detectedLanguage && detectedLanguage !== this.currentLanguage) {
             console.log(`🌍 Language change detected in user input: ${this.currentLanguage} -> ${detectedLanguage}`);
             this.updateLanguage(detectedLanguage);
@@ -1389,7 +1699,7 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
     async sendMessageWithLanguageDetection(message: string): Promise<void> {
         // Detect language change before sending
         this.detectAndUpdateLanguage(message);
-        
+
         // Send the message normally
         await this.sendMessage(message);
     }

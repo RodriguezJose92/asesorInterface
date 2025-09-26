@@ -9,7 +9,8 @@ import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
 import { SurveyOverlay } from "./survey-overlay"
 import type { Message } from "@/lib/types"
-import { Dispatch, SetStateAction } from "react"
+import { Dispatch, SetStateAction, useEffect } from "react"
+
 
 interface ChatModalProps {
   isOpen: boolean
@@ -57,8 +58,9 @@ export function ChatModal({
   StatusWelcolmeMessage,
   setterStatusWelcomeMessage,
 }: ChatModalProps) {
-  if (!isOpen) return null
 
+
+  if (!isOpen) return null
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center">

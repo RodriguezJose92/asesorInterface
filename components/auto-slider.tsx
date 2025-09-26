@@ -11,7 +11,6 @@ import { useEffect, useRef, useState } from "react"
 import gsap from "gsap"
 import { useQuickOptionsStore } from "@/store/useQuickOptionsStore"
 import RealtimeService from "./services/RealtimeService"
-import { useRealtime } from "@/hooks/useRealtime"
 import { useLanguageStore } from "@/store/useLanguageStore"
 
 /** Structure quickQuestion */
@@ -146,6 +145,7 @@ export function AutoSlider() {
         loop={true}
         className="mySwiperQuickQuestion"
       >
+        {/** @ts-ignore */}
         {quickOptions[languageCurrent].map((group, idx) => (
           <SwiperSlide key={idx}>
             <div

@@ -18,6 +18,10 @@ interface dataLanguaheProps {
     realSurvey: {
         es: string[]
         en: string[]
+    },
+    muted: {
+        es: string[]
+        en: string[]
     }
 }
 
@@ -28,14 +32,13 @@ export const dataLanguage: dataLanguaheProps = {
             "Tu asistente Ai kitchenAid",
             "Bienvenido",
             "Encuentra la solución perfecta para tu cocina"
-
         ],
         en: [
             "My Kit AI",
-            "Your AI Kitchen Assitant",
-            "Tu asistente Ai kitchenAid",
-            "Welcome.",
-            "¡Get ready to find your perfect kitchen solution!"
+            "Your AI Kitchen Assistant",
+            "Welcome",
+            "Find the perfect solution for your kitchen",
+            "Get ready to find your perfect kitchen solution!"
         ]
     },
     chatMessage: {
@@ -102,6 +105,16 @@ export const dataLanguage: dataLanguaheProps = {
             "Would you like to share any additional details? (optional)",
             "Write your comments...",
             "Submit feedback"
+        ]
+    },
+    muted: {
+        es: [
+            "Estás en Mute",
+            
+        ],
+        en: [
+            "You're muted",
+            
         ]
     }
 }

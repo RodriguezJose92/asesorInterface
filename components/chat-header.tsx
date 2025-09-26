@@ -1,6 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useEventBus } from "@/hooks/useEventBus"
+import { EventBusService, EventTypes } from "@/lib/events"
+import { registerEventListeners, unSubscribeEventListeners } from "@/utils/events/events"
 import { MultimediaStore } from "@/utils/stores/zustandStore"
 import { X, ChevronDown, ArrowLeft } from "lucide-react"
 import { useEffect } from "react"
@@ -14,12 +17,24 @@ interface ChatHeaderProps {
 export function ChatHeader({ onClose, onMinimize, backgroundClass }: ChatHeaderProps) {
 
   const { multimediaStatus, setMultimediaStatus } = MultimediaStore();
+  const eventBus = EventBusService.getInstance();
 
   const deleteMultimodalPopUp = () => {
-    const element = document.getElementById('multiMediaPopUp') as HTMLDivElement;
-    element && element.remove();
+
+    const element = document.getElementById("multiMediaPopUp") as HTMLDivElement;
+    console.log(element)
+    element.remove();
     setMultimediaStatus(false)
   };
+
+  /** Seteamos los listeners para la adminsitración de la UI por medio de eventos  */
+  useEffect(()=>{
+   
+    registerEventListeners();
+    return () => {
+      unSubscribeEventListeners();
+    };
+  }, [eventBus]);
 
   return (
     <div
@@ -40,19 +55,14 @@ export function ChatHeader({ onClose, onMinimize, backgroundClass }: ChatHeaderP
         <img src="/img/AIPng.png" className="w-10 h-10 rounded-full border-[2px] border-[#ffffff]"></img>
       </div>
 
-      {
-        !multimediaStatus &&
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={onMinimize} className="text-white hover:bg-white/10 ">
-            <ChevronDown data-props="header-hidden" />
-          </Button>
-          <Button variant="ghost" size="icon" data-props="header-closeChat" onClick={onClose} className="text-white hover:bg-white/10">
-            <X data-props="header-hidden" />
-          </Button>
-        </div>
-      }
-
-
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={onMinimize} className="text-white hover:bg-white/10 ">
+          <ChevronDown data-props="header-minimized" />
+        </Button>
+        <Button variant="ghost" size="icon" data-props="header-closeChat" onClick={onClose} className="text-white hover:bg-white/10">
+          <X />
+        </Button>
+      </div>
     </div>
   )
 }

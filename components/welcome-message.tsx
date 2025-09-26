@@ -7,7 +7,7 @@ import { useLanguageStore } from "@/store/useLanguageStore";
 
 export function WelcomeMessage({ status, setter }: { status: boolean, setter: Dispatch<SetStateAction<boolean>> }) {
   const divRef = useRef<HTMLDivElement>(null);
-  const { languageCurrent } = useLanguageStore()
+  const { languageCurrent, browserLanguage } = useLanguageStore()
 
   useEffect(() => {
 
@@ -35,17 +35,17 @@ export function WelcomeMessage({ status, setter }: { status: boolean, setter: Di
     >
 
       {/* Loader */}
-      <div className="flex items-center gap-1 flex-col-reverse bg-[#c41230] py-4 px-4 shadow-[0px_0px_10px_#c41230]">
-        <h2 className="font-semibold text-white text-[25px] text-center">
-          {
-            languageCurrent && dataLanguage.welcome[languageCurrent][0]
-          }
-          <p className="text-[10px]">
-            {
+      <div className="flex items-center flex-col-reverse bg-[#c41230] py-4 px-4 shadow-[0px_0px_10px_#c41230]">
 
-              languageCurrent && dataLanguage.welcome[languageCurrent][1]
+        <p className="text-[10px] text-white">
+            {
+              languageCurrent && dataLanguage.welcome[languageCurrent as keyof typeof dataLanguage.welcome]?.[1]
             }
           </p>
+          <h2 className="font-semibold text-white text-[25px] text-center">
+          {
+            languageCurrent && dataLanguage.welcome[languageCurrent as keyof typeof dataLanguage.welcome]?.[0]
+          }
         </h2>
         <div className="relative flex justify-center align-middle">
 
@@ -56,19 +56,19 @@ export function WelcomeMessage({ status, setter }: { status: boolean, setter: Di
       </div>
 
       <div className="w-[100%] absolute bottom-0 py-5  gap-[10px] flex flex-col bg-[#000000aa] backdrop-blur-sm shadow-[0px_-5px_10px_#000000cc]">
-        <p
-          className="text-[45px] font-bold text-white text-center"
+        <div
+          className="text-[45px] font-bold text-white text-center cursor-pointer"
           onClick={() => alert('Mostrar terminos y condiciones')}
         >
           {
-            languageCurrent && dataLanguage.welcome[languageCurrent][3]
+            languageCurrent && dataLanguage.welcome[languageCurrent as keyof typeof dataLanguage.welcome]?.[2]
           }
           <p className="text-[#ffffff] text-[12px] font-bold px-4  rounded-lg">
             {
-              languageCurrent && dataLanguage.welcome[languageCurrent][4]
+              languageCurrent && dataLanguage.welcome[languageCurrent as keyof typeof dataLanguage.welcome]?.[3]
             }
           </p>
-        </p>
+        </div>
       </div>
 
     </div>

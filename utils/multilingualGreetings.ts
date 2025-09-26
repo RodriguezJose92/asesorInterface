@@ -9,13 +9,13 @@ export interface MultilingualGreetings {
 
 export const multilingualGreetings: MultilingualGreetings = {
     es: {
-        greeting: "¡Hola! Soy tu asistente de electrodomésticos. ¿En qué puedo ayudarte hoy?",
+        greeting: "Hola, soy Kit-AI. Piéns en mi  como una compañera amigable en tu viaje de cocina. Puedes simplemente hablarme o escribir si lo prefieres — de cualquier manera estaré aquí para guiarte. Juntos exploraremos los electrodomésticos, ideas y detalles que harán realidad la cocina de tus sueños.",
         followUp: "Puedes preguntarme sobre cualquier electrodoméstico que necesites.",
         languageDetected: "He detectado que tu navegador está en español. Hablaré contigo en español.",
         languageSwitch: "Perfecto, ahora hablaré contigo en español."
     },
     en: {
-        greeting: "Hello! I'm your home appliances assistant. How can I help you today?",
+        greeting: "Hi there, I’m Kit-AI. Think of me as a friendly companion for your kitchen journey. You can simply speak, or type if you prefer — either way, I’ll be here to guide you. Together, we’ll explore the appliances, ideas, and details that bring your dream kitchen to life.",
         followUp: "You can ask me about any appliance you need.",
         languageDetected: "I've detected your browser is in English. I'll speak with you in English.",
         languageSwitch: "Perfect, I'll now speak with you in English."
