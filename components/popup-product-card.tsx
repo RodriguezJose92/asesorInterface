@@ -30,6 +30,8 @@ export function ProductCard({ product, position , onMultimediaClick, onProductSe
     FAQS = []
   } = product;
 
+  console.log(product)
+
   const renderStars = (rating: number ) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -60,11 +62,9 @@ export function ProductCard({ product, position , onMultimediaClick, onProductSe
     alert('conectando con sistema CMS ...')
   }
 
-  const handleMultimediaClick = () => {
-
-    onProductSelect?.(product, 'multimedia');
-
-    onMultimediaClick?.();
+  const handleMultimediaClick = (product:any) => {
+    // onProductSelect?.(product, 'multimedia');
+    // onMultimediaClick?.();
   }
 
   return (
@@ -76,7 +76,7 @@ export function ProductCard({ product, position , onMultimediaClick, onProductSe
         {/* Product Image - ref/fake Img - */}
         <div className="bg-gray-50 px-8 flex items-center justify-center w-[100%] h-[150px] ">
           <img
-            src="https://whirlpoolco.vtexassets.com/arquivos/ids/156345-800-auto?v=638253280514130000&width=800&height=auto&aspect=true"
+            src={profilePic}
             alt={name}
             className=""
             style={{
@@ -123,7 +123,7 @@ export function ProductCard({ product, position , onMultimediaClick, onProductSe
             <span className="text-[11px] font-bold text-gray-900">${price.toFixed(2)}</span>
             {price && <span className="text-[11px] text-gray-500 line-through">${price.toFixed(2)}</span>}
           </div>
-          {price && <span className="text-[11px] font-bold text-green-600 ">Save ${price / 2}</span>}
+          {price && <span className="text-[11px] font-bold text-green-600 ">-{discount} %</span>}
         </div>
 
         {/* Action Buttons */}
@@ -139,7 +139,7 @@ export function ProductCard({ product, position , onMultimediaClick, onProductSe
             Add to Car
             <ShoppingCart className="w-3 h-3 " />
           </Button>
-          <Button className="flex-1 bg-[#c41230] text-white h-8 text-[12px] btnMultimediaAsesorAi" onClick={handleMultimediaClick} >
+          <Button className="flex-1 bg-[#c41230] text-white h-8 text-[12px] btnMultimediaAsesorAi" onClick={()=>handleMultimediaClick(product)} >
             Multimedia
             <Play className="w-3 h-3 " />
           </Button>

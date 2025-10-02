@@ -15,6 +15,30 @@ export enum EventTypes {
     SHOW_3D = 'SHOW_3D',
 
     /**
+     * Event to show Carrousel Images visualization or content
+     * Payload should contain 3D-related data
+     */
+    SHOW_IMAGES = 'SHOW_IMAGES',
+
+    /**
+     * Event to show Carrousel Images visualization or content
+     * Payload should contain 3D-related data
+     */
+    SHOW_VIDEO = 'SHOW_VIDEO',
+
+    /**
+     * Event to show Augmented Reality (AR) view for a product
+     * Payload should contain AR-related data
+     */
+    SHOW_AR = 'SHOW_AR',
+
+    /**
+     * Event to close the carousel/multimedia view
+     * Used to dismiss the current multimedia display
+     */
+    CLOSE_CAROUSEL = 'CLOSE_CAROUSEL',
+
+    /**
      * Event to show multimedia content (video, audio, images)
      * Payload should contain multimedia-related data
      */
@@ -42,7 +66,13 @@ export enum EventTypes {
      * User interaction event
      * For tracking user actions
      */
-    USER_INTERACTION = 'USER_INTERACTION'
+    USER_INTERACTION = 'USER_INTERACTION',
+
+    /**
+     * User interaction event
+     * For tracking user actions
+     */
+    MUTED = 'USER_INTERACTION'
 }
 
 /**

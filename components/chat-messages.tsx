@@ -88,13 +88,6 @@ export function ChatMessages({
             className={"max-w-[100%] p-3 flex items-start gap-2 bg-gray-200 shadow-lg rounded-md relative"}
             style={{ transition: "opacity 0.5s, transform 0.5s" }}
           >
-            <h1
-              className='absolute top-[-10px] right-[-5px] bg-[#c41230] px-[7px] rounded-full text-white font-bold cursor-pointer text-[16px]'
-              onClick={handleClose}
-              title="Cerrar"
-            >
-              X
-            </h1>
             <div className="flex flex-col gap-1" >
               <p className="text-[10px] text-center w-[95%] flex flex-col gap-2 mx-auto">
                 {
@@ -117,11 +110,7 @@ export function ChatMessages({
       {messages.map((message) => (
         <div key={message.id} className={cn("flex", message.isUser ? "justify-end" : "justify-start")}>
           {
-            message.type === "multimedia" && message.carousel ? (
-              <div className="max-w-[100%]">
-                <ImageCarousel images={message.carousel.images} productName={message.carousel.productName} />
-              </div>
-            ) : message.type === "product" && message.product ? (
+ message.type === "product" && message.product ? (
               <>
                 <div className="max-w-full w-full pb-[0px]">
                   <Swiper

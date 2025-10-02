@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Box, ImageIcon, Play, Scan } from "lucide-react"
 import { useMultimediaViewStore } from "@/store/useMultimediaViewStore"
+import { useImageCarouselStore } from "@/store/useImageCarouselStore"
 
 import { gsap } from "gsap"
 interface ImageCarouselProps {
@@ -12,11 +13,14 @@ interface ImageCarouselProps {
   productName: string
 }
 
-export function ImageCarousel({ images, productName }: ImageCarouselProps) {
+export function ImageCarousel({ images, productName }: any) {
 
   const cardRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [currentProduct, setCurrentProduct] = useState<any>(null)
   const { activeView, setActiveView } = useMultimediaViewStore()
+  const { isVisible, productInfo } = useImageCarouselStore()
 
   const viewOptions = [
     { id: "3D", label: "3D", icon: Box },
@@ -26,33 +30,77 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
   ]
 
   const nextImage = () => {
-    setCurrentIndex((prev) => (prev + 1) % images.length)
+    //@ts-ignore
+    setCurrentIndex((prev) => (prev + 1) % productInfo.content.source.length)
   }
 
   const prevImage = () => {
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+    //@ts-ignore
+    setCurrentIndex((prev) => (prev - 1 + productInfo.content.source.length) % productInfo.content.source.length)
   }
 
   useEffect(() => {
     activeView == "AR" && window.open('https://viewer.mudi.com.co/v1/ar/?id=398&sku=KRMF706ESS_MEX', '_BLANK')
   }, [activeView])
 
+  // Efecto para actualizar el producto cuando cambie productInfo
+  useEffect(() => {
+    if (productInfo) {
+      console.log('Producto actualizado:', productInfo)
+      setCurrentProduct(productInfo)
+    }
+  }, [productInfo])
+
+  // Animación de entrada y salida
   useEffect(() => {
 
-    setTimeout(() => {
-      if (cardRef.current) {
-        gsap.fromTo(
-          cardRef.current,
-          { opacity: 0, },
-          { opacity: 1, duration: 0.7 }
-        );
-      }
-    }, 4000)
+    if (!cardRef.current) return
 
-  }, []);
+    if (isVisible && !isAnimating) {
+      setIsAnimating(true)
+      gsap.fromTo(
+        cardRef.current,
+        {
+          opacity: 0,
+          scale: 0.8,
+          y: 50
+        },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.5,
+          ease: "back.out(1.7)",
+          onComplete: () => setIsAnimating(false)
+        }
+      )
+    } else if (!isVisible && !isAnimating) {
+      setIsAnimating(true)
+      gsap.to(cardRef.current, {
+        opacity: 0,
+        scale: 0.8,
+        y: -50,
+        duration: 0.3,
+        ease: "back.in(1.7)",
+        onComplete: () => setIsAnimating(false)
+      })
+    }
+  }, [isVisible])
+
+  useEffect(()=>{
+    console.log('productoInfoManuelSeLaCome')
+    console.log(currentProduct)
+  },[currentProduct])
+
+  //   useEffect(()=>{
+  //     console.log(currentProduct)
+  //  alert('activeView change ')
+  // },[activeView])
+
+  if (!isVisible ) return null
 
   return (
-    
+
     <Card
       ref={cardRef}
       className={`w-full  overflow-hidden absolute top-0 left-[0px] h-[100dvh] z-[2] flex flex-col items-center justify-center opacity-0 border-[transparent] bg-[#f5f5f5]`}
@@ -92,14 +140,16 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
           {/** Aqui irir el swiper JS para las iamgenes  */}
           <div className="aspect-square flex items-center justify-center ">
             <img
-              src={images[currentIndex] || "/placeholder.svg"}
+              //@ts-ignore
+              src={productInfo.content.source[currentIndex] || "/placeholder.svg"}
               alt={`${productName} - imagen ${currentIndex + 1}`}
               className="size-[90%] object-contain rounded-2xl"
             />
           </div>
 
           {/* Navigation Arrows */}
-          {images.length > 1 && (
+          {/** @ts-ignore */}
+          {productInfo?.content.source.length > 1 && (
             <>
               <Button
                 variant="ghost"
@@ -127,8 +177,8 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
       {
         activeView == '3D' &&
         <div className=" py-[0px] height-[100%] ">
-
-          <iframe className="w-[100%] h-[60dvh]" src="https://viewer.mudi.com.co/v1/web/?id=398&sku=KRMF706ESS_MEX" />
+          {/**@ts-ignore */}
+          <iframe className="w-[100%] h-[60dvh]" src={productInfo.product.Link3D} />
 
         </div>
       }
@@ -157,7 +207,7 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
       {/* Image Counter and Dots */}
       <div className="px-4 py-[10px] space-y-3">
         {/* Dots Indicator */}
-        {images.length > 1 && (
+        {/* {images.length > 1 && (
           <div className="flex justify-center gap-2">
             {images.map((_, index) => (
               <button
@@ -168,7 +218,7 @@ export function ImageCarousel({ images, productName }: ImageCarouselProps) {
               />
             ))}
           </div>
-        )}
+        )} */}
       </div>
 
 

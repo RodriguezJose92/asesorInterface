@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { useQuickOptionsStore } from "@/store/useQuickOptionsStore"
 import { dataLanguage } from "@/languajes/data";
 import { useLanguageStore, LanguageCode } from "@/store/useLanguageStore"
-
+import './styles/swiper-quickQuestion.css'
 import RealtimeService from "./services/RealtimeService"
 import { AutoSlider } from "./auto-slider"
 import { useRefElementsStore } from "@/store/RefElements"
@@ -206,7 +206,7 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
 
       {/* Auto Slider */}
       <div className="row-span-1  pb-[13px] absolute top-[-200%]" id="quickQuestionSliders">
-        <AutoSlider />
+        {/* <AutoSlider /> */}
       </div>
 
       <div
@@ -250,10 +250,10 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
                 
                 disabled={isLoading}
                 className={`
-                  h-8 w-8 transition-all duration-200 rounded-full text-[#c41230] shadow-[none] 
+                  h-8 w-8 transition-all duration-200 rounded-full text-[#c41230] shadow-[none]  hover:bg-white
                   ${showRealtimeIndicator ? "bg-green-100 border-green-500 text-green-600" : "bg-[transparent] border-[1px]"}
                   ${isLoading ? "opacity-50 cursor-not-allowed" : ""}
-                  ${isMuted && 'bg-red-100'}
+                  ${isMuted && 'bg-red-100 hover:bg-red-100'}
                 `}
                 // onClick={ }
                 title={isRealtimeConnected ? "Stop Realtime Session" : "Start Realtime Session"}

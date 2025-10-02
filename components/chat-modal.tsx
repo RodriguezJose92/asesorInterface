@@ -10,6 +10,7 @@ import { ChatInput } from "./chat-input"
 import { SurveyOverlay } from "./survey-overlay"
 import type { Message } from "@/lib/types"
 import { Dispatch, SetStateAction, useEffect } from "react"
+import { ImageCarousel } from "./image-carousel"
 
 
 interface ChatModalProps {
@@ -110,9 +111,12 @@ export function ChatModal({
           {showSurvey && (
             <SurveyOverlay onStartSurvey={onStartSurvey} onResumeChat={onResumeChat} onCloseChat={onCloseChat} />
           )}
+
+                <ImageCarousel />
         </Card>
       </div>
       <WelcomeMessage status={StatusWelcolmeMessage} setter={setterStatusWelcomeMessage} />
+
     </>
   )
 }

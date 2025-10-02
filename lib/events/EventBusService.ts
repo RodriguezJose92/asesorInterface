@@ -118,6 +118,8 @@ export class EventBusService implements IEventBus {
             console.log(`📝 Subscribed to ${eventType} (ID: ${subscription.id}, Priority: ${subscription.priority}, Source: ${subscription.source || 'unknown'})`);
         }
 
+        console.log(subscription)
+
         return subscription;
     }
 

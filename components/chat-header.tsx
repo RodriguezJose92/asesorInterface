@@ -7,6 +7,7 @@ import { registerEventListeners, unSubscribeEventListeners } from "@/utils/event
 import { MultimediaStore } from "@/utils/stores/zustandStore"
 import { X, ChevronDown, ArrowLeft } from "lucide-react"
 import { useEffect } from "react"
+import { useImageCarouselStore } from "@/store/useImageCarouselStore"
 
 interface ChatHeaderProps {
   onClose: () => void
@@ -17,14 +18,11 @@ interface ChatHeaderProps {
 export function ChatHeader({ onClose, onMinimize, backgroundClass }: ChatHeaderProps) {
 
   const { multimediaStatus, setMultimediaStatus } = MultimediaStore();
+  const { isVisible, hideCarousel } = useImageCarouselStore()
   const eventBus = EventBusService.getInstance();
 
   const deleteMultimodalPopUp = () => {
-
-    const element = document.getElementById("multiMediaPopUp") as HTMLDivElement;
-    console.log(element)
-    element.remove();
-    setMultimediaStatus(false)
+    hideCarousel()
   };
 
   /** Seteamos los listeners para la adminsitración de la UI por medio de eventos  */
@@ -42,7 +40,7 @@ export function ChatHeader({ onClose, onMinimize, backgroundClass }: ChatHeaderP
     >
 
       {
-        multimediaStatus &&
+        isVisible  &&
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={deleteMultimodalPopUp} className="text-white hover:bg-white/10 ">
             <ArrowLeft data-props="header-hidden" />
