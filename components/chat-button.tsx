@@ -24,7 +24,7 @@ export function ChatButton({ onClick, isOpen }: ChatButtonProps) {
     <Button
       onClick={onClick}
       className={cn(
-        "fixed bottom-6 right-6 size-[50px] rounded-full shadow-2xl",
+        "fixed bottom-4 right-4 size-[50px] rounded-full shadow-2xl",
         "bg-[#c41230]",
         "transition-all duration-300 hover:scale-110",
         "backdrop-blur-sm border border-white/20",

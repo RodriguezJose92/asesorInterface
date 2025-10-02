@@ -9,7 +9,9 @@ import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
 import { SurveyOverlay } from "./survey-overlay"
 import type { Message } from "@/lib/types"
-import { Dispatch, SetStateAction } from "react"
+import { Dispatch, SetStateAction, useEffect } from "react"
+import { ImageCarousel } from "./image-carousel"
+
 
 interface ChatModalProps {
   isOpen: boolean
@@ -57,8 +59,9 @@ export function ChatModal({
   StatusWelcolmeMessage,
   setterStatusWelcomeMessage,
 }: ChatModalProps) {
-  if (!isOpen) return null
 
+
+  if (!isOpen) return null
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -108,9 +111,12 @@ export function ChatModal({
           {showSurvey && (
             <SurveyOverlay onStartSurvey={onStartSurvey} onResumeChat={onResumeChat} onCloseChat={onCloseChat} />
           )}
+
+                <ImageCarousel />
         </Card>
       </div>
       <WelcomeMessage status={StatusWelcolmeMessage} setter={setterStatusWelcomeMessage} />
+
     </>
   )
 }

@@ -7,11 +7,12 @@ import { ProductInfo } from "@/lib/types"
 
 interface ProductCardProps {
   product: ProductInfo
+  position: number
   onMultimediaClick?: () => void
   onProductSelect?: (product: ProductInfo, action: 'add_to_cart' | 'multimedia') => void
 }
 
-export function ProductCard({ product, onMultimediaClick, onProductSelect }: ProductCardProps) {
+export function ProductCard({ product, position , onMultimediaClick, onProductSelect }: ProductCardProps) {
   const {
     sku,
     name,
@@ -29,7 +30,9 @@ export function ProductCard({ product, onMultimediaClick, onProductSelect }: Pro
     FAQS = []
   } = product;
 
-  const renderStars = (rating: number) => {
+  console.log(product)
+
+  const renderStars = (rating: number ) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
@@ -59,34 +62,21 @@ export function ProductCard({ product, onMultimediaClick, onProductSelect }: Pro
     alert('conectando con sistema CMS ...')
   }
 
-  const handleMultimediaClick = () => {
-
-    onProductSelect?.(product, 'multimedia');
-
-    onMultimediaClick?.();
+  const handleMultimediaClick = (product:any) => {
+    // onProductSelect?.(product, 'multimedia');
+    // onMultimediaClick?.();
   }
 
   return (
-    <Card className="w-[90%] max-w-sm mx-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden pb-[30px] mb-[20px]">
+    <Card className="w-[90%] max-w-sm mx-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden pb-[30px] mb-[20px] relative">
+      <h1 className="absolute top-2 left-2 rounded-full py-1.5 bg-black/50 text-white px-2  z-[1000] text-[12px]">#{position + 1}</h1>
       {/* Navigation arrows */}
       <div className="relative h-[150px] flex w-full">
-
-        {/** Mejor poner un SWIPER pero jere dijo que solo iban una foto ...*/}
-        {/* <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
-          <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full bg-white/80 hover:bg-white">
-            <span className="text-gray-600">‹</span>
-          </Button>
-        </div>
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 z-10">
-          <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full bg-white/80 hover:bg-white">
-            <span className="text-gray-600">›</span>
-          </Button>
-        </div> */}
 
         {/* Product Image - ref/fake Img - */}
         <div className="bg-gray-50 px-8 flex items-center justify-center w-[100%] h-[150px] ">
           <img
-            src="https://whirlpoolco.vtexassets.com/arquivos/ids/156345-800-auto?v=638253280514130000&width=800&height=auto&aspect=true"
+            src={profilePic}
             alt={name}
             className=""
             style={{
@@ -133,7 +123,7 @@ export function ProductCard({ product, onMultimediaClick, onProductSelect }: Pro
             <span className="text-[11px] font-bold text-gray-900">${price.toFixed(2)}</span>
             {price && <span className="text-[11px] text-gray-500 line-through">${price.toFixed(2)}</span>}
           </div>
-          {price && <span className="text-[11px] font-bold text-green-600 ">Save ${price / 2}</span>}
+          {price && <span className="text-[11px] font-bold text-green-600 ">-{discount} %</span>}
         </div>
 
         {/* Action Buttons */}
@@ -149,7 +139,7 @@ export function ProductCard({ product, onMultimediaClick, onProductSelect }: Pro
             Add to Car
             <ShoppingCart className="w-3 h-3 " />
           </Button>
-          <Button className="flex-1 bg-[#c41230] text-white h-8 text-[12px]" onClick={handleMultimediaClick}>
+          <Button className="flex-1 bg-[#c41230] text-white h-8 text-[12px] btnMultimediaAsesorAi" onClick={()=>handleMultimediaClick(product)} >
             Multimedia
             <Play className="w-3 h-3 " />
           </Button>
