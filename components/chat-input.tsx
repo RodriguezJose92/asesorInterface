@@ -112,7 +112,6 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
       break
     }
 
-
   };
 
   /**

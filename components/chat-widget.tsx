@@ -115,7 +115,7 @@ export function ChatWidget() {
                 RealtimeService.sendMessage("Hello");
                 setStatusWelcomeMessage(false);
                 setTimeout(() => {
-                  // alert("say");
+                  console.log("say");
                   RealtimeService.muteInput(true);
                 }, 14000);
                 setTimeout(() => {
