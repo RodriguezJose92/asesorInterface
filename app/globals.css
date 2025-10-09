@@ -15,8 +15,6 @@
   }
 }
 
-
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -94,4 +92,8 @@
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
+}
+
+.sliderQuestionCarousel .swiper-pagination {
+  bottom: 0;
 }

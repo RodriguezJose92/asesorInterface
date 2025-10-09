@@ -41,6 +41,7 @@ class RealtimeService {
       fullTranscript: string
     ) => void;
     onMetadata?: (metadata: any) => void;
+    onQuickActions?: (quickActions: any) => void;
   } = {};
 
   // 🆕 Para tracking de transcripciones del agente
@@ -112,6 +113,7 @@ class RealtimeService {
         this.createShowvideoTool(),
         this.createShowARTool(),
         this.createCloseCarouselTool(),
+        this.createSendQuickActionsTool(),
       ],
       instructions: this.generateMultilingualInstructions(),
       handoffDescription: "Voice assistant for product recommendations",
@@ -321,6 +323,64 @@ class RealtimeService {
         required: [],
       },
       invoke: this.handleCloseCarousel.bind(this),
+    };
+  }
+
+  /**
+   * Creates the tool for sending quick actions suggestions
+   */
+  private createSendQuickActionsTool() {
+    return {
+      type: "function" as const,
+      name: "send_quick_actions",
+      description:
+        "Send contextual quick action suggestions to the user after providing information. Use this to suggest relevant next steps based on the conversation context (e.g., view 3D, see images, watch video, view in AR).",
+      strict: false,
+      needsApproval: async () => false,
+      parameters: {
+        type: "object" as const,
+        additionalProperties: false,
+        properties: {
+          actions: {
+            type: "array" as const,
+            description: "Array of suggested quick actions (maximum 4 actions)",
+            items: {
+              type: "object" as const,
+              properties: {
+                id: {
+                  type: "string" as const,
+                  description: "Unique identifier for the action",
+                },
+                label: {
+                  type: "string" as const,
+                  description: "Display label for the action button",
+                },
+                action: {
+                  type: "string" as const,
+                  enum: [
+                    "show_3d",
+                    "show_ar",
+                    "show_video",
+                    "show_images",
+                    "buy",
+                    "more_info",
+                  ],
+                  description: "Type of action to execute",
+                },
+                productSku: {
+                  type: "string" as const,
+                  description:
+                    "Product SKU if action is related to a specific product",
+                },
+              },
+              required: ["id", "label", "action"],
+            },
+            maxItems: 4,
+          },
+        },
+        required: ["actions"],
+      },
+      invoke: this.handleSendQuickActions.bind(this),
     };
   }
 
@@ -835,6 +895,44 @@ class RealtimeService {
   }
 
   /**
+   * Handle send quick actions tool
+   */
+  private async handleSendQuickActions(args: any) {
+    console.log("🎯 Tool send_quick_actions invoked with:", args);
+
+    // Extract arguments from context if needed
+    let toolArgs = this.extractToolArgs(args, "send_quick_actions");
+
+    if (!toolArgs || !toolArgs.actions || !Array.isArray(toolArgs.actions)) {
+      console.error("🎯 ERROR: Missing or invalid actions parameter");
+      return {
+        success: false,
+        message: "Error: actions array is required",
+      };
+    }
+
+    console.log("🎯 Quick actions to send:", toolArgs.actions);
+
+    // Get service instance to trigger callback
+    const serviceInstance = RealtimeService.getInstance();
+
+    // Format the quick actions data
+    const formattedQuickActions = {
+      actions: toolArgs.actions,
+    };
+
+    console.log("🎯 Sending formatted quick actions:", formattedQuickActions);
+
+    // Trigger the callback
+    serviceInstance.triggerQuickActionsCallback(formattedQuickActions);
+
+    return {
+      success: true,
+      message: `Quick actions sent successfully (${toolArgs.actions.length} actions)`,
+    };
+  }
+
+  /**
    * Extract tool arguments from context
    */
   private extractToolArgs(args: any, toolName: string): any {
@@ -1125,13 +1223,43 @@ ${productInstructions}
 2. **Choose 1-5 SKUs** - Select from the available catalog above
 3. **Speak your recommendation** - Give natural audio response in current language
 4. **IMMEDIATELY call the tool** - Use send_product_metadata with the exact SKUs
+5. **🎯 IMMEDIATELY after send_product_metadata** - ALWAYS call send_quick_actions to provide contextual buttons
 
 ### 🛠️ TOOL USAGE RULES:
 - **ALWAYS call send_product_metadata after recommending products**
+- **ALWAYS call send_quick_actions immediately after send_product_metadata**
 - **Use EXACT SKUs from the catalog above**
 - **Maximum 5 products per call**
 - **Include reasoning for your selection in current language**
 - **Tool format: {"product_skus": ["SKU1", "SKU2"], "reasoning": "why you chose these"}**
+
+### 🎯 COMPLETE EXAMPLE WITH BOTH TOOLS:
+
+**User:** "Necesito una nevera"
+
+**Step 1 - You speak:** "Perfecto, tengo la nevera ideal para ti"
+
+**Step 2 - Call send_product_metadata:**
+\`\`\`json
+{
+  "product_skus": ["RF600-WH"],
+  "reasoning": "Nevera espaciosa perfecta para familias"
+}
+\`\`\`
+
+**Step 3 - IMMEDIATELY call send_quick_actions:**
+\`\`\`json
+{
+  "actions": [
+    {"id": "capacity", "label": "Ver capacidad en 3D", "action": "show_3d", "productSku": "RF600-WH"},
+    {"id": "ar", "label": "Ver en tu cocina (AR)", "action": "show_ar", "productSku": "RF600-WH"},
+    {"id": "video", "label": "Video demostrativo", "action": "show_video", "productSku": "RF600-WH"},
+    {"id": "buy", "label": "Agregar al carrito", "action": "buy", "productSku": "RF600-WH"}
+  ]
+}
+\`\`\`
+
+**THIS IS MANDATORY - YOU MUST CALL BOTH TOOLS EVERY TIME YOU RECOMMEND PRODUCTS!**
 
 ## 📋 LANGUAGE-SPECIFIC EXAMPLES:
 
@@ -1139,10 +1267,12 @@ ${languageTerms.examples}
 
 ### 🚨 MANDATORY RULES:
 - **NEVER recommend products without calling the tool**
+- **ALWAYS call send_quick_actions immediately after send_product_metadata**
 - **ONLY use these exact SKUs: ECO200-FL, SWP300-TL, SWP500-FL, RF600-WH, RF800-SS**
 - **Tool call is REQUIRED after every product recommendation**
 - **Format must be exact: {"product_skus": ["SKU"], "reasoning": "explanation"}**
 - **Always respond in the language the user is currently using**
+- **🎯 TWO TOOLS = ONE RECOMMENDATION: send_product_metadata + send_quick_actions (ALWAYS BOTH!)**
 
 ## 🛒 PRODUCT SELECTION RESPONSES & ENGAGEMENT
 When you receive internal messages about product selection, respond with SHORT, enthusiastic confirmations that HIGHLIGHT 3D and AR viewing options:
@@ -1485,7 +1615,26 @@ ADDITIONALLY, when users request multimedia, 3D, AR, videos, or images:
 
 If you recommend a product but don't call the tool, the user won't see the product information visually, which breaks the experience.
 
+🎯 **CRITICAL: ALWAYS CALL send_quick_actions IN ALMOST EVERY RESPONSE!**
+
+**MANDATORY RULES FOR send_quick_actions:**
+1. Call it after EVERY response (except initial greeting)
+2. Make the actions CONTEXTUAL to what you just said
+3. Think: "What would the user logically want to do next?"
+4. Be creative with labels - adapt to conversation topic
+5. Use appropriate action types: show_3d, show_ar, show_video, show_images, buy, more_info
+
+**EXAMPLES:**
+- Answered about energy? → Offer: "Ver etiqueta energética", "Comparar consumos", "Modelos eficientes"
+- Answered about capacity? → Offer: "Ver interior en 3D", "Ver dimensiones", "Video de capacidad"
+- Showed products? → Offer: "Ver en 3D", "Ver en AR", "Video demo", "Comprar"
+- Answered about price? → Offer: "Comprar ahora", "Comparar precios", "Opciones de pago"
+- General question? → Offer relevant exploration actions
+
+**EVERY RESPONSE (except greeting) = send_quick_actions with contextual buttons!**
+
 ALWAYS CALL THE APPROPRIATE TOOLS WHEN NEEDED!
+**PRODUCT RECOMMENDATION = 2 TOOL CALLS: send_product_metadata + send_quick_actions**
 ALWAYS RESPOND IN THE USER'S CURRENT LANGUAGE!
 NEVER CHANGE LANGUAGE UNLESS USER CHANGES FIRST!
 
@@ -1574,6 +1723,254 @@ When a user shows interest in a product category, ALWAYS ask 2-3 relevant qualif
 
 **REMEMBER**: Quality questions lead to better recommendations. Take time to understand before suggesting products.
 
+# 🎯 QUICK ACTIONS TOOL - CONTEXTUAL SUGGESTIONS
+
+## 📌 SEND_QUICK_ACTIONS TOOL
+Use the \`send_quick_actions\` tool to provide **contextual action buttons** after showing product information or answering questions. These buttons should be **relevant to the conversation context**.
+
+### WHEN TO USE:
+- After sending product recommendations (via send_product_metadata)
+- After answering product-related questions
+- When user might benefit from seeing multimedia content
+- To guide user to next logical steps
+
+### HOW IT WORKS:
+The tool displays interactive buttons that users can click to trigger actions. **YOU decide which actions to suggest** based on the conversation context.
+
+### AVAILABLE ACTIONS:
+- **"show_3d"** - Show 3D model visualization
+- **"show_ar"** - Show in Augmented Reality (user's space)
+- **"show_video"** - Play product demonstration video
+- **"show_images"** - View product image gallery
+- **"buy"** - Purchase or add to cart
+- **"more_info"** - Show additional product details
+
+### 🎯 CONTEXTUAL EXAMPLES:
+
+**Example 1: User asks about refrigerators**
+→ Call: send_quick_actions({
+  "actions": [
+    {"id": "capacity", "label": "Ver capacidad en 3D", "action": "show_3d", "productSku": "RF600-WH"},
+    {"id": "space", "label": "Ver en tu cocina (AR)", "action": "show_ar", "productSku": "RF600-WH"},
+    {"id": "energy", "label": "Consumo energético", "action": "more_info"},
+    {"id": "video", "label": "Video demostrativo", "action": "show_video", "productSku": "RF600-WH"}
+  ]
+})
+
+**Example 2: User asks about washing machine capacity**
+→ Call: send_quick_actions({
+  "actions": [
+    {"id": "capacity", "label": "Ver tambor en 3D", "action": "show_3d", "productSku": "SWP500-FL"},
+    {"id": "programs", "label": "Ver programas (Video)", "action": "show_video", "productSku": "SWP500-FL"},
+    {"id": "images", "label": "Ver galería de imágenes", "action": "show_images", "productSku": "SWP500-FL"},
+    {"id": "buy", "label": "Agregar al carrito", "action": "buy", "productSku": "SWP500-FL"}
+  ]
+})
+
+**Example 3: User asks about energy efficiency**
+→ Call: send_quick_actions({
+  "actions": [
+    {"id": "energy", "label": "Detalles de consumo", "action": "more_info"},
+    {"id": "compare", "label": "Comparar modelos", "action": "show_images"},
+    {"id": "ar", "label": "Ver en tu espacio", "action": "show_ar"},
+    {"id": "buy", "label": "Comprar ahora", "action": "buy"}
+  ]
+})
+
+### 🌍 MULTILINGUAL LABELS:
+
+**Spanish (es):**
+- 3D: "Ver en 3D" / "Vista 3D" / "Modelo 3D"
+- AR: "Ver en tu espacio (AR)" / "Realidad aumentada"
+- Video: "Ver video" / "Video demostrativo"
+- Images: "Ver imágenes" / "Galería de fotos"
+- Buy: "Agregar al carrito" / "Comprar"
+- Info: "Más información" / "Detalles"
+
+**English (en):**
+- 3D: "View in 3D" / "3D Model" / "3D View"
+- AR: "View in your space (AR)" / "Augmented Reality"
+- Video: "Watch video" / "Product demo"
+- Images: "View images" / "Photo gallery"
+- Buy: "Add to cart" / "Buy now"
+- Info: "More details" / "Learn more"
+
+**French (fr):**
+- 3D: "Voir en 3D" / "Modèle 3D" / "Vue 3D"
+- AR: "Voir dans votre espace (RA)" / "Réalité augmentée"
+- Video: "Voir vidéo" / "Démonstration"
+- Images: "Voir images" / "Galerie photos"
+- Buy: "Ajouter au panier" / "Acheter"
+- Info: "Plus d'infos" / "Détails"
+
+### 🚨 CRITICAL RULES:
+1. **Maximum 4 actions** per quick actions message
+2. **Labels must be in current language** (match conversation language)
+3. **Labels should be contextual** to what was just discussed
+4. **Include productSku** when action is product-specific
+5. **Use AFTER showing products** or answering product questions
+6. **Be creative** - adapt labels to conversation context
+7. **Don't always suggest the same actions** - vary based on context
+
+### 💡 CONTEXT-AWARE SUGGESTIONS:
+
+**If user mentions space/size:**
+→ Prioritize "show_ar" (see in their space)
+
+**If user mentions technical details:**
+→ Prioritize "more_info" and "show_3d"
+
+**If user mentions appearance:**
+→ Prioritize "show_images" and "show_video"
+
+**If user is ready to buy:**
+→ Prioritize "buy" and "show_ar" (final confirmation)
+
+**If user asks about features:**
+→ Prioritize "show_video" (demonstrations) and "show_3d"
+
+### 📋 TOOL FORMAT:
+\`\`\`json
+{
+  "actions": [
+    {
+      "id": "unique-id",           // Unique identifier
+      "label": "Button text",       // What user sees (IN CURRENT LANGUAGE)
+      "action": "show_3d",         // One of the 6 available actions
+      "productSku": "RF600-WH"     // Optional: product SKU if applicable
+    }
+  ]
+}
+\`\`\`
+
+### ✅ WHEN TO CALL:
+- ✅ **ALWAYS** after every response you give (except the initial greeting)
+- ✅ After calling send_product_metadata
+- ✅ After answering product questions
+- ✅ After answering technical questions
+- ✅ After general conversations
+- ✅ When guiding user to explore more
+
+**CRITICAL RULE: You should call send_quick_actions in ALMOST EVERY response you give!**
+
+The only exception is the very first greeting. After that, EVERY response should include contextual quick actions.
+
+**REMEMBER**: The goal is to provide **helpful next steps** that make sense in the conversation context. Think about what the user would logically want to do next!
+
+### 🎯 EXPANDED CONTEXTUAL EXAMPLES FOR ALL SCENARIOS:
+
+**Scenario 1: Initial greeting response**
+User: "Hola"
+→ DON'T send quick actions on first greeting
+→ Just greet naturally
+
+**Scenario 2: User asks about product category**
+User: "¿Qué neveras tienes?"
+→ Call send_product_metadata (show products)
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "capacity", "label": "Ver capacidad", "action": "show_3d"},
+    {"id": "energy", "label": "Eficiencia energética", "action": "more_info"},
+    {"id": "ar", "label": "Ver en tu cocina", "action": "show_ar"},
+    {"id": "video", "label": "Video demo", "action": "show_video"}
+  ]
+}
+\`\`\`
+
+**Scenario 3: User asks about energy consumption**
+User: "¿Cuánto consume de energía?"
+→ Answer the question
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "label", "label": "Ver etiqueta energética", "action": "show_images"},
+    {"id": "compare", "label": "Comparar consumos", "action": "more_info"},
+    {"id": "calculate", "label": "Calcular costo mensual", "action": "more_info"},
+    {"id": "products", "label": "Ver modelos eficientes", "action": "more_info"}
+  ]
+}
+\`\`\`
+
+**Scenario 4: User asks about capacity**
+User: "¿Qué capacidad tiene?"
+→ Answer with capacity details
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "interior", "label": "Ver interior en 3D", "action": "show_3d"},
+    {"id": "dimensions", "label": "Ver dimensiones", "action": "show_images"},
+    {"id": "video", "label": "Video de capacidad", "action": "show_video"},
+    {"id": "compare", "label": "Comparar tamaños", "action": "more_info"}
+  ]
+}
+\`\`\`
+
+**Scenario 5: User asks about features**
+User: "¿Qué características tiene?"
+→ Answer with features
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "demo", "label": "Ver demostración", "action": "show_video"},
+    {"id": "detail", "label": "Detalles técnicos", "action": "more_info"},
+    {"id": "3d", "label": "Explorar en 3D", "action": "show_3d"},
+    {"id": "buy", "label": "Agregar al carrito", "action": "buy"}
+  ]
+}
+\`\`\`
+
+**Scenario 6: User asks about price**
+User: "¿Cuánto cuesta?"
+→ Answer with pricing
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "buy", "label": "Comprar ahora", "action": "buy"},
+    {"id": "compare", "label": "Comparar precios", "action": "more_info"},
+    {"id": "financing", "label": "Opciones de pago", "action": "more_info"},
+    {"id": "see", "label": "Ver el producto", "action": "show_3d"}
+  ]
+}
+\`\`\`
+
+**Scenario 7: User asks general question about appliances**
+User: "¿Qué es mejor, top load o front load?"
+→ Answer the question
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "top", "label": "Ver modelos Top Load", "action": "more_info"},
+    {"id": "front", "label": "Ver modelos Front Load", "action": "more_info"},
+    {"id": "compare", "label": "Comparar tipos", "action": "show_images"},
+    {"id": "video", "label": "Video explicativo", "action": "show_video"}
+  ]
+}
+\`\`\`
+
+**Scenario 8: After showing products**
+User: "Muéstrame lavadoras"
+→ Call send_product_metadata
+→ THEN call send_quick_actions:
+\`\`\`json
+{
+  "actions": [
+    {"id": "3d", "label": "Ver en 3D", "action": "show_3d"},
+    {"id": "ar", "label": "Ver en tu espacio", "action": "show_ar"},
+    {"id": "video", "label": "Ver funcionamiento", "action": "show_video"},
+    {"id": "buy", "label": "Agregar al carrito", "action": "buy"}
+  ]
+}
+\`\`\`
+
+**CRITICAL: Think creatively! Adapt the action labels and types to EVERY conversation context!**
+
 `;
   }
 
@@ -1660,6 +2057,7 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
       fullTranscript: string
     ) => void;
     onMetadata?: (metadata: any) => void;
+    onQuickActions?: (quickActions: any) => void;
   }): Promise<void> {
     if (this.isConnecting) {
       throw new Error("Connection already in progress");
@@ -2511,6 +2909,16 @@ User: "J'ai besoin d'une machine à laver pour mon petit appartement"
   triggerMetadataCallback(metadata: any): void {
     if (this.connectionCallbacks.onMetadata) {
       this.connectionCallbacks.onMetadata(metadata);
+    }
+  }
+
+  /**
+   * Triggers the quick actions callback (used by tools)
+   * @param quickActions - The quick actions to send
+   */
+  triggerQuickActionsCallback(quickActions: any): void {
+    if (this.connectionCallbacks.onQuickActions) {
+      this.connectionCallbacks.onQuickActions(quickActions);
     }
   }
 

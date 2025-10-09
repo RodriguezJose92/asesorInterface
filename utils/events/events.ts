@@ -82,8 +82,9 @@ class Events {
     }
 
     closeCanvas(){
-      alert('saludando')
-      useImageCarouselStore.getState().hideCarousel()
+      console.log("[EventBus] Closing carousel/multimedia viewer...");
+      useImageCarouselStore.getState().hideCarousel();
+      useMultimediaViewStore.getState().setActiveView("IMAGENES"); // Reset to default view
     }
 
     // closeCarousel() {
@@ -111,6 +112,8 @@ export function registerEventListeners() {
   eventBus.subscribe<ProductInfo>(EventTypes.SHOW_MULTIMEDIA, (event: any) => events.multimedia(event.payload));
   eventBus.subscribe<ProductInfo>(EventTypes.SHOW_IMAGES, (event: any) => events.viewImages(event.payload));
   eventBus.subscribe<ProductInfo>(EventTypes.SHOW_VIDEO, (event: any) => events.viewVideo(event.payload));
+  eventBus.subscribe<ProductInfo>(EventTypes.SHOW_AR, (event: any) => events.viewAR(event.payload));
+  eventBus.subscribe(EventTypes.CLOSE_CAROUSEL, () => events.closeCanvas());
   eventBus.subscribe(EventTypes.UI_UPDATE, () => events.hiddenMessagePolitices());
   eventBus.subscribe(EventTypes.MUTED, () => events.muted());
 }
@@ -121,6 +124,8 @@ export function unSubscribeEventListeners() {
   eventBus.unsubscribeAll(EventTypes.SHOW_MULTIMEDIA);
   eventBus.unsubscribeAll(EventTypes.SHOW_IMAGES);
   eventBus.unsubscribeAll(EventTypes.SHOW_VIDEO);
+  eventBus.unsubscribeAll(EventTypes.SHOW_AR);
+  eventBus.unsubscribeAll(EventTypes.CLOSE_CAROUSEL);
   eventBus.unsubscribeAll(EventTypes.HIDE_3D);
   eventBus.unsubscribeAll(EventTypes.HIDE_MULTIMEDIA);
   eventBus.unsubscribeAll(EventTypes.UI_UPDATE);
