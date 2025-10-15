@@ -1002,7 +1002,7 @@ export function ChatWidget() {
                 //  después de 15 segun se desmutea
                 setTimeout(() => {
                   RealtimeService.muteInput(false);
-                }, 15000);
+                }, 7000);
               } catch (error) {
                 console.warn("⚠️ Could not trigger agent greeting:", error);
               }

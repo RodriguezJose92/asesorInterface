@@ -172,7 +172,7 @@ export function ChatMessages({
                   className={cn(
                     "p-3 rounded-2xl flex items-start gap-2",
                     message.isUser
-                      ? "bg-[#c41230] text-white justify-end max-w-[80%] rounded-tl-[16px] rounded-tr-[0px] rounded-br-[16px] rounded-bl-[16px] whitespace-normal break-all"
+                      ? "bg-[#c41230] text-white justify-end max-w-[80%] rounded-tl-[16px] rounded-tr-[0px] rounded-br-[16px] rounded-bl-[16px] whitespace-normal break-word "
                       : "bg-white/70 text-gray-800 border justify-start max-w-[90%] rounded-tl-[0px] rounded-tr-[16px] rounded-br-[16px] rounded-bl-[16px]"
                   )}
                 >
