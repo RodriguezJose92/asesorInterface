@@ -47,6 +47,14 @@ export interface ProductInfo {
   LinkVideo?: string;
   TechnicalSheet?: string;
   FAQS?: FAQItem[];
+  /** Added content structure to align with usage in image-carousel.tsx */
+  content?: {
+    source: string[];
+  };
+  /** Safe access for currentProduct.product.Link3D */
+  product?: {
+    Link3D?: string;
+  };
 }
 
 export interface CarouselInfo {

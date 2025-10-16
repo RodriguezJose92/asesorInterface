@@ -1,42 +1,43 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Send, Mic, MicOff, Loader2 } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
-import { useRealtime } from "@/hooks/useRealtime"
-import { toast } from "sonner"
-import { useQuickOptionsStore } from "@/store/useQuickOptionsStore"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Send, Mic, MicOff, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useRealtime } from "@/hooks/useRealtime";
+import { toast } from "sonner";
+import { useQuickOptionsStore } from "@/store/useQuickOptionsStore";
 import { dataLanguage } from "@/languajes/data";
-import { useLanguageStore, LanguageCode } from "@/store/useLanguageStore"
-import './styles/swiper-quickQuestion.css'
-import RealtimeService from "./services/RealtimeService"
-import { AutoSlider } from "./auto-slider"
-import { useRefElementsStore } from "@/store/RefElements"
+import { useLanguageStore, LanguageCode } from "@/store/useLanguageStore";
+import "./styles/swiper-quickQuestion.css";
+import RealtimeService from "./services/RealtimeService";
+import { AutoSlider } from "./auto-slider";
+import { useRefElementsStore } from "@/store/RefElements";
 
 // Helper to ensure only supported languages are used for inputMessage
-function getSupportedLang(lang: LanguageCode): 'es' | 'en' {
-  return lang === 'es' || lang === 'en' ? lang : 'en';
+function getSupportedLang(lang: LanguageCode): "es" | "en" {
+  return lang === "es" || lang === "en" ? lang : "en";
 }
 
 interface ChatInputProps {
-  value: string
-  onChange: (value: string) => void
-  onSend: () => void
-};
+  value: string;
+  onChange: (value: string) => void;
+  onSend: () => void;
+}
 
 export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
   // Local state for UI
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [statusCall , setStatusCall] = useState<boolean>(false)
-  const { languageCurrent } = useLanguageStore()
-  const buttonMuted = useRef<HTMLDivElement>(null)
-  const buttonCall = useRef<HTMLDivElement>(null)
+  const [statusCall, setStatusCall] = useState<boolean>(false);
+  const { languageCurrent } = useLanguageStore();
+  const buttonMuted = useRef<HTMLDivElement>(null);
+  const buttonCall = useRef<HTMLDivElement>(null);
 
   // Global state for quick options
-  const { viewQuickOptions, setViewQuicOptions, toggleViewQuickOptions } = useQuickOptionsStore();
-  const setStopCall = useRefElementsStore.getState().setStopCall
-  const setMutedStorage = useRefElementsStore.getState().setMutedStorage
+  const { viewQuickOptions, setViewQuicOptions, toggleViewQuickOptions } =
+    useQuickOptionsStore();
+  const setStopCall = useRefElementsStore.getState().setStopCall;
+  const setMutedStorage = useRefElementsStore.getState().setMutedStorage;
 
   // Touch states for swipe detection
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -52,7 +53,7 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     sendMessage: sendRealtimeMessage,
     messages: realtimeMessages,
     clearMessages: clearRealtimeMessages,
-    audioData
+    audioData,
   } = useRealtime();
 
   // Handle connection errors
@@ -68,9 +69,9 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     if (realtimeMessages.length > 0) {
       const latestMessage = realtimeMessages[realtimeMessages.length - 1];
 
-      if (latestMessage.type === 'response') {
+      if (latestMessage.type === "response") {
         toast.success("🤖 AI Response received");
-      } else if (latestMessage.type === 'error') {
+      } else if (latestMessage.type === "error") {
         toast.error(`Error: ${latestMessage.content}`);
       }
     }
@@ -83,13 +84,11 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     }
   }, [audioData]);
 
-
   /**
    * Handles starting/stopping the realtime session
    */
-  const handleRealtimeToggle = async ({from}:{from:string}) => {
-    
-    switch(from){
+  const handleRealtimeToggle = async ({ from }: { from: string }) => {
+    switch (from) {
       case "call":
         // Si la llamada está activa, la finalizamos y muteamos
         if (statusCall) {
@@ -105,13 +104,12 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
         break;
 
       case "muted":
-        const currentStatusCall2 = RealtimeService.getAudioInputMuted()
-        console.log(currentStatusCall2)
+        const currentStatusCall2 = RealtimeService.getAudioInputMuted();
+        console.log(currentStatusCall2);
         RealtimeService.muteInput(!currentStatusCall2);
-        setIsMuted(!currentStatusCall2)
-      break
+        setIsMuted(!currentStatusCall2);
+        break;
     }
-
   };
 
   /**
@@ -151,24 +149,22 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
 
   const hasText = value.trim().length > 0;
   const isLoading = isRealtimeConnecting;
-  const [showRealtimeIndicator, setShowRealtimeIndicator] = useState<boolean>(false)
-  const [counter, setCounter] = useState<number>(0)
+  const [showRealtimeIndicator, setShowRealtimeIndicator] =
+    useState<boolean>(false);
+  const [counter, setCounter] = useState<number>(0);
 
   useEffect(() => {
-    
     if (counter > 0) {
-      value == '' && (setViewQuicOptions(false))
-      value !== '' && (setViewQuicOptions(true))
+      value == "" && setViewQuicOptions(false);
+      value !== "" && setViewQuicOptions(true);
     }
-
-  }, [value])
+  }, [value]);
 
   useEffect(() => {
-
     if (hasText && counter == 0) {
-      setCounter(1)
+      setCounter(1);
     }
-  }, [hasText])
+  }, [hasText]);
 
   // Touch handlers for swipe detection ( quickQuestions )
   const minSwipeDistance = 50;
@@ -178,7 +174,8 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
     setTouchStart(e.targetTouches[0].clientY);
   };
 
-  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientY);
+  const onTouchMove = (e: React.TouchEvent) =>
+    setTouchEnd(e.targetTouches[0].clientY);
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
@@ -193,18 +190,17 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
   };
 
   useEffect(() => {
-    
-    setStopCall(buttonCall.current)
-    setMutedStorage(buttonMuted.current)
-
-  },[])
-    
+    setStopCall(buttonCall.current);
+    setMutedStorage(buttonMuted.current);
+  }, []);
 
   return (
     <div className="px-[10px] py-[2px] rounded-[10px] shadow-[0_0_3px_#c41230] w-[95%] mx-auto mb-[10px] relative z-10">
-
       {/* Auto Slider */}
-      <div className="row-span-1  pb-[13px] absolute top-[-200%]" id="quickQuestionSliders">
+      <div
+        className="row-span-1  pb-[13px] absolute top-[-200%]"
+        id="quickQuestionSliders"
+      >
         {/* <AutoSlider /> */}
       </div>
 
@@ -218,23 +214,34 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
           <Input
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            onClick={e => e.preventDefault()}
+            onClick={(e) => e.preventDefault()}
             placeholder={
-              isMuted ? 
-                dataLanguage.muted[getSupportedLang(languageCurrent)][0]
-              :!statusCall
-                ? dataLanguage.inputMessage[getSupportedLang(languageCurrent)][0]
-                : dataLanguage.inputMessage[getSupportedLang(languageCurrent)][1]
+              isMuted
+                ? dataLanguage.muted[getSupportedLang(languageCurrent)][0]
+                : !statusCall
+                ? dataLanguage.inputMessage[
+                    getSupportedLang(languageCurrent)
+                  ][0]
+                : dataLanguage.inputMessage[
+                    getSupportedLang(languageCurrent)
+                  ][1]
             }
             className="bg-[transparent] border-[transparent] text-gray-800 placeholder:text-gray-500 inputUser focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 border-0 w-[100%] text-[16px]"
             onKeyPress={(e) => e.key === "Enter" && handleEnhancedSend()}
           />
-          <div className={`absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 w-[max-content] overflow-auto ${hasText ? '' : 'w-[0px]'}`}>
+          <div
+            className={`absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 w-[max-content] overflow-auto ${
+              hasText ? "" : "w-[0px]"
+            }`}
+          >
             <Button
               onClick={handleEnhancedSend}
               size="icon"
-              className={`h-8 w-8 rounded-full ${hasText ? "flex" : "hidden"} ${isRealtimeConnected ? "bg-green-600 hover:bg-green-700" : "bg-[#c41230] hover:bg-[#c41230]"
-                }`}
+              className={`h-8 w-8 rounded-full ${hasText ? "flex" : "hidden"} ${
+                isRealtimeConnected
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-[#c41230] hover:bg-[#c41230]"
+              }`}
             >
               <Send className="w-3 h-3" />
             </Button>
@@ -242,56 +249,107 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
         </div>
         {!hasText && (
           <>
-            {
-              !statusCall &&
+            {!statusCall && (
               <Button
                 size="icon"
-                
                 disabled={isLoading}
                 className={`
                   h-8 w-8 transition-all duration-200 rounded-full text-[#c41230] shadow-[none]  hover:bg-white
-                  ${showRealtimeIndicator ? "bg-green-100 border-green-500 text-green-600" : "bg-[transparent] border-[1px]"}
+                  ${
+                    showRealtimeIndicator
+                      ? "bg-green-100 border-green-500 text-green-600"
+                      : "bg-[transparent] border-[1px]"
+                  }
                   ${isLoading ? "opacity-50 cursor-not-allowed" : ""}
-                  ${isMuted && 'bg-red-100 hover:bg-red-100'}
+                  ${isMuted && "bg-red-100 hover:bg-red-100"}
                 `}
                 // onClick={ }
-                title={isRealtimeConnected ? "Stop Realtime Session" : "Start Realtime Session"}
-              >
-                {
-                  isMuted 
-                  ? <div className={`w-4 h-4`} onClick={() => { RealtimeService.muteInput(false); setIsMuted(false) }}>
-                  <MicOff className={`w-4 h-4`} />
-                </div>
-                  : <div className={`w-4 h-4`} onClick={() => { RealtimeService.muteInput(true); setIsMuted(true) }} ref={buttonMuted}>
-                  <Mic className={`w-4 h-4`} />
-                </div>
+                title={
+                  isRealtimeConnected
+                    ? "Stop Realtime Session"
+                    : "Start Realtime Session"
                 }
+              >
+                {isMuted ? (
+                  <div
+                    className={`w-4 h-4`}
+                    onClick={() => {
+                      RealtimeService.muteInput(false);
+                      setIsMuted(false);
+                    }}
+                  >
+                    <MicOff className={`w-4 h-4`} />
+                  </div>
+                ) : (
+                  <div
+                    className={`w-4 h-4`}
+                    onClick={() => {
+                      RealtimeService.muteInput(true);
+                      setIsMuted(true);
+                    }}
+                    ref={buttonMuted}
+                  >
+                    <Mic className={`w-4 h-4`} />
+                  </div>
+                )}
               </Button>
-            }
-
+            )}
 
             <Button
               size="sm"
               disabled={isLoading}
               className={`transition-all duration-200 rounded-full text-white px-[12px] flex  items-center justify-center
-              ${showRealtimeIndicator ? "h-8 w-[auto] bg-green-600 hover:bg-green-700" : "h-8 w-8 bg-[#c41230] hover:bg-[#c41230]"}
-              ${isLoading ? "opacity-50 cursor-not-allowed" : ""} ${!statusCall ? "w-[auto] " : "w-8 h-8"}`}
-              onClick={()=>handleRealtimeToggle({from:"call"})}
-              title={isRealtimeConnected ? "End Realtime Session" : "Start Realtime Session"}
-              
+              ${
+                showRealtimeIndicator
+                  ? "h-8 w-[auto] bg-green-600 hover:bg-green-700"
+                  : "h-8 w-8 bg-[#c41230] hover:bg-[#c41230]"
+              }
+              ${isLoading ? "opacity-50 cursor-not-allowed" : ""} ${
+                !statusCall ? "w-[auto] " : "w-8 h-8"
+              }`}
+              onClick={() => {
+                !statusCall
+                  ? (setStatusCall(true),
+                    RealtimeService.muteInput(true),
+                    setIsMuted(true))
+                  : (setStatusCall(false),
+                    RealtimeService.muteInput(false),
+                    setIsMuted(false));
+              }}
+              title={
+                isRealtimeConnected
+                  ? "End Realtime Session"
+                  : "Start Realtime Session"
+              }
             >
-              <div className={`flex items-center justify-center ${!statusCall ? "gap-1" : ""}`} ref={buttonCall}>
+              <div
+                className={`flex items-center justify-center ${
+                  !statusCall ? "gap-1" : ""
+                }`}
+                ref={buttonCall}
+              >
                 <div className="flex gap-0.5 items-center justify-center">
-                  <div className={`w-[3px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse" : ""}`}></div>
+                  <div
+                    className={`w-[3px] h-2 bg-white rounded ${
+                      showRealtimeIndicator ? "animate-pulse" : ""
+                    }`}
+                  ></div>
 
-                  <div className={`w-[3px] h-4 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-150" : ""}`}></div>
-                  <div className={`w-[3px] h-2 bg-white rounded ${showRealtimeIndicator ? "animate-pulse delay-75" : ""}`}></div>
+                  <div
+                    className={`w-[3px] h-4 bg-white rounded ${
+                      showRealtimeIndicator ? "animate-pulse delay-150" : ""
+                    }`}
+                  ></div>
+                  <div
+                    className={`w-[3px] h-2 bg-white rounded ${
+                      showRealtimeIndicator ? "animate-pulse delay-75" : ""
+                    }`}
+                  ></div>
                 </div>
                 <span className={`text-xs font-medium`}>
                   {statusCall ? "" : "End"}
                 </span>
               </div>
-
             </Button>
           </>
         )}
@@ -300,8 +358,11 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
       {/* Realtime Status Indicator */}
       {showRealtimeIndicator && (
         <div className="mt-2 text-xs text-center">
-          <span className={`px-2 py-1 rounded-full text-white ${isRealtimeConnected ? "bg-green-500" : "bg-yellow-500"
-            }`}>
+          <span
+            className={`px-2 py-1 rounded-full text-white ${
+              isRealtimeConnected ? "bg-green-500" : "bg-yellow-500"
+            }`}
+          >
             {isRealtimeConnected ? "🎤 Realtime Active" : "🔄 Connecting..."}
           </span>
         </div>
@@ -310,9 +371,10 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
       {/* Messages count indicator */}
       {realtimeMessages.length > 0 && (
         <div className="mt-1 text-xs text-gray-500 text-center">
-          {realtimeMessages.length} realtime message{realtimeMessages.length !== 1 ? 's' : ''}
+          {realtimeMessages.length} realtime message
+          {realtimeMessages.length !== 1 ? "s" : ""}
         </div>
       )}
     </div>
-  )
+  );
 }

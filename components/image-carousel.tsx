@@ -77,8 +77,8 @@ export function ImageCarousel({ images, productName }: any) {
     //@ts-ignore
     setCurrentIndex(
       (prev) =>
-        (prev - 1 + productInfo.content.source.length) %
-        productInfo.content.source.length
+        (prev - 1 + (productInfo?.content?.source?.length ?? 1)) %
+        (productInfo?.content?.source?.length ?? 1)
     );
   };
 
@@ -181,16 +181,17 @@ export function ImageCarousel({ images, productName }: any) {
       {/* Image Container */}
 
       {activeView == "IMAGENES" && (
-        <div className=" py-[0px] height-[100%] ">
+        <div className="py-[0px] height-[100%] min-h-[60%]">
           {/** Aqui irir el swiper JS para las iamgenes  */}
-          <div className="aspect-square flex items-center justify-center ">
+          <div className="aspect-square flex items-center justify-center h-[100%] w-[100%] ">
             <img
               //@ts-ignore
               src={
-                productInfo.content.source[currentIndex] || "/placeholder.svg"
+                productInfo?.content?.source?.[currentIndex] ||
+                "/placeholder.svg"
               }
               alt={`${productName} - imagen ${currentIndex + 1}`}
-              className="height-[100%] object-contain rounded-2xl"
+              className="flex h-[100%] object-contain rounded-2xl m-auto"
             />
           </div>
 
@@ -226,7 +227,7 @@ export function ImageCarousel({ images, productName }: any) {
           {productInfo && (
             <iframe
               className="w-[100%] h-[60dvh]"
-              src={productInfo.product.Link3D}
+              src={productInfo?.product?.Link3D || ""}
             />
           )}
         </div>
@@ -244,8 +245,56 @@ export function ImageCarousel({ images, productName }: any) {
 
       {/* AR Container */}
       {activeView == "AR" && (
-        <div className=" py-[0px] height-[100%] ">
-          <div className="w-[100%] h-[60dvh] rounded-2xl" />
+        <div className=" w-[90%] py-[0px] h-[60%] flex flex-col justify-center align-middle">
+          <div className="space-y-4 w-[80%] bg-[#c41230] h-[max-content] py-8 flex flex-col justify-center align-middle mx-auto px-4 rounded-lg">
+            <h2 className="w-full text-center text-white font-bold">
+              {" "}
+              Para una mejor experiencia{" "}
+            </h2>
+            <div className="flex items-center gap-3 text-[white]">
+              <img
+                src="https://cdn.jsdelivr.net/gh/RodriguezJose92/pepeganga@latest/assets/step3pepeganga.webp"
+                alt="Apunta el teléfono"
+                className="w-6 h-8"
+              />
+              <p className="text-sm md:text-base font-medium">
+                Apunta el teléfono al piso.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 text-[white]">
+              <img
+                src="https://cdn.jsdelivr.net/gh/RodriguezJose92/pepeganga@latest/assets/step4pepeganga.webp"
+                alt="Desplaza"
+                className="w-6 h-8"
+              />
+              <p className="text-sm md:text-base font-medium">
+                Desplaza para visualizar.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 text-[white]">
+              <img
+                src="https://cdn.jsdelivr.net/gh/RodriguezJose92/pepeganga@latest/assets/step2pepeganga.webp"
+                alt="Amplía el producto"
+                className="w-6 h-8"
+              />
+              <p className="text-sm md:text-base font-medium">
+                Amplía y detalla el producto.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 text-[white]">
+              <img
+                src="https://cdn.jsdelivr.net/gh/RodriguezJose92/pepeganga@latest/assets/step1pepeganga.webp"
+                alt="Restablecer"
+                className="w-6 h-8"
+              />
+              <p className="text-sm md:text-base font-medium">
+                Toca dos veces para restablecer.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -274,9 +323,6 @@ export function ImageCarousel({ images, productName }: any) {
                 }}
                 className="flex w-[max-content] items-center gap-2 justify-start h-auto py-3 px-3 text-left bg-white  transition-all duration-300 group border-gray-300 rounded-lg shadow-sm"
               >
-                <span className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                  <Info />
-                </span>
                 <span className="text-xs font-medium leading-tight">
                   {item.question}
                 </span>
