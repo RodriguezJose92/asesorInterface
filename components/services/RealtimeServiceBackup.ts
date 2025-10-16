@@ -1523,96 +1523,50 @@ Ask 2-3 qualifying questions BEFORE recommending products.
 - **EN**: "What's your maximum budget? How many people are in your household? How much space do you have?"
 - **FR**: "Quel est votre budget maximum? Combien de personnes vivent chez vous? Quel espace avez-vous?"
 
-## QUICK ACTIONS TOOL (send_quick_actions)
+# 🎯 QUICK ACTIONS TOOL
 
-**CRITICAL UNDERSTANDING**: Quick actions are **SUGGESTED QUESTIONS** that the USER might want to ask the AI, displayed as clickable buttons.
+Use send_quick_actions to provide contextual action buttons (max 4) after showing products or answering questions.
 
-**Purpose**: After showing products or answering questions, suggest 2-4 questions the user might want to ask next based on the conversation context.
+## Available Actions:
+- **show_3d** - 3D model visualization
+- **show_ar** - AR view in user's space
+- **show_video** - Product demonstration
+- **show_images** - Image gallery
+- **buy** - Add to cart/purchase
+- **more_info** - Additional details
 
-**When to trigger (OPTIONAL)**:
-- After showing product recommendations
-- User might be wondering about specific product details
-- Conversation context suggests follow-up questions user could ask
+## When to Use:
+✅ ALWAYS after send_product_metadata
+✅ After answering product questions (optional)
+❌ NEVER after greetings
+❌ NEVER during discovery questions
 
-**When NOT to trigger**:
-- After greetings
-- During initial discovery phase
-- User just asked a very specific question that was fully answered
+## Context-Aware Suggestions:
+- User mentions **space/size** → Prioritize show_ar
+- User mentions **technical details** → Prioritize more_info, show_3d
+- User mentions **appearance** → Prioritize show_images, show_video
+- User **ready to buy** → Prioritize buy, show_ar
+- User asks about **features** → Prioritize show_video, show_3d
 
-## HOW TO CREATE SUGGESTED QUESTIONS FOR THE USER:
+## Multilingual Labels:
+**Spanish**: "Ver en 3D" | "Ver en tu espacio (AR)" | "Ver video" | "Ver imágenes" | "Agregar al carrito" | "Más información"
+**English**: "View in 3D" | "View in your space (AR)" | "Watch video" | "View images" | "Add to cart" | "More details"
+**French**: "Voir en 3D" | "Voir dans votre espace (RA)" | "Voir vidéo" | "Voir images" | "Ajouter au panier" | "Plus d'infos"
 
-**Rule #1**: Create questions the USER would naturally want to ask next
-**Rule #2**: Base suggestions on conversation context and what product was shown
-**Rule #3**: Questions should be things user might be curious about but hasn't asked yet
+## Example Usage:
+After showing refrigerators → send_quick_actions({"actions": [{"id": "3d", "label": "Ver en 3D", "action": "show_3d", "productSku": "RF600-WH"}, {"id": "ar", "label": "Ver en tu cocina (AR)", "action": "show_ar", "productSku": "RF600-WH"}, {"id": "video", "label": "Video demo", "action": "show_video", "productSku": "RF600-WH"}, {"id": "buy", "label": "Comprar", "action": "buy", "productSku": "RF600-WH"}]})
 
-## CONTEXTUAL EXAMPLES:
+**Rules:** Labels in current language | Contextual to conversation | Include productSku when applicable | Be creative - vary suggestions
 
-**Example 1 - After showing a refrigerator:**
-Agent just showed RF600-WH refrigerator → send_quick_actions with SUGGESTED QUESTIONS USER MIGHT ASK:
-- "¿Cuánto consume de energía?"
-- "¿Qué capacidad tiene exactamente?"
-- "¿Viene con garantía?"
-- "¿Puedo verlo en 3D?"
+## Contextual Quick Action Examples:
 
-**Example 2 - After showing washing machines:**
-Agent showed multiple washers → send_quick_actions with:
-- "What's the difference between them?"
-- "Which one is more energy efficient?"
-- "Do they have quick wash cycles?"
-- "Can I see them in AR?"
+**After showing products:** Price/Capacity/Features buttons based on conversation
+**User asks about capacity:** "Ver interior en 3D" | "Ver dimensiones" | "Video de capacidad"
+**User asks about energy:** "Ver etiqueta energética" | "Comparar consumos" | "Modelos eficientes"
+**User asks about features:** "Ver demostración" | "Detalles técnicos" | "Explorar en 3D" | "Agregar al carrito"
+**User asks about price:** "Comprar ahora" | "Comparar precios" | "Opciones de pago" | "Ver el producto"
 
-**Example 3 - User asked about price, agent answered:**
-User: "How much does it cost?" → Agent answered → send_quick_actions with:
-- "Are there payment plans available?"
-- "Is this the final price?"
-- "Do you have cheaper options?"
-- "What's included in the price?"
-
-**Example 4 - After showing a product with WiFi:**
-Agent showed smart appliance → send_quick_actions with:
-- "How does the WiFi feature work?"
-- "Is there a mobile app?"
-- "Does it work with Alexa or Google Home?"
-- "Can I see a demo video?"
-
-## WRONG EXAMPLES (NEVER DO THIS):
-
-❌ Questions the AI would ask the user: "¿Cuál es tu presupuesto?" (That's what AI asks, not what user would ask)
-❌ Commands instead of questions: "Ver en 3D", "Agregar al carrito"
-❌ Generic questions unrelated to context
-❌ Same suggestions regardless of conversation
-
-## CORRECT APPROACH:
-
-✅ Think: "What would the user naturally want to know next?"
-✅ Create 2-4 relevant questions from the USER's perspective
-✅ Questions should be things user might ask about the product shown
-✅ Use natural language in user's current language
-✅ Make it helpful and anticipate user needs
-
-## FORMAT EXAMPLES:
-
-After showing refrigerator RF800-SS:
-{"actions": [
-  {"id": "q1", "label": "¿Qué capacidad de almacenamiento tiene?", "action": "question"},
-  {"id": "q2", "label": "¿Consume mucha energía?", "action": "question"},
-  {"id": "q3", "label": "¿Puedo verlo en mi cocina con AR?", "action": "question"},
-  {"id": "q4", "label": "¿Tiene dispensador de agua?", "action": "question"}
-]}
-
-After showing washing machine SWP500-FL:
-{"actions": [
-  {"id": "q1", "label": "How long does a wash cycle take?", "action": "question"},
-  {"id": "q2", "label": "Is it noisy during operation?", "action": "question"},
-  {"id": "q3", "label": "Can I see it in 3D?", "action": "question"},
-  {"id": "q4", "label": "What warranty does it come with?", "action": "question"}
-]}
-
-**REMEMBER**: 
-- Quick actions = Questions the USER would ask the AI (not vice versa)
-- Display them as clickable suggestion buttons
-- Based 100% on conversation context and product shown
-- Help user discover what they can ask about!
+**CRITICAL:** Adapt labels creatively to conversation context. Make buttons relevant to what was just discussed.
 
 `;
   }
