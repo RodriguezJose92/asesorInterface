@@ -1,38 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { X, ChevronDown } from "lucide-react"
-import { DetailedSurvey } from "./detailed-survey"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { X, ChevronDown } from "lucide-react";
+import { DetailedSurvey } from "./detailed-survey";
 import { dataLanguage } from "@/languajes/data";
-import { useLanguageStore } from "@/store/useLanguageStore"
+import { useLanguageStore } from "@/store/useLanguageStore";
 
 interface SurveyOverlayProps {
-  onStartSurvey: () => void
-  onResumeChat: () => void
-  onCloseChat: () => void
+  onStartSurvey: () => void;
+  onResumeChat: () => void;
+  onCloseChat: () => void;
 }
 
-export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: SurveyOverlayProps) {
-  const [showDetailedSurvey, setShowDetailedSurvey] = useState(false)
-  const { languageCurrent } = useLanguageStore()
+export function SurveyOverlay({
+  onStartSurvey,
+  onResumeChat,
+  onCloseChat,
+}: SurveyOverlayProps) {
+  const [showDetailedSurvey, setShowDetailedSurvey] = useState(false);
+  const { languageCurrent } = useLanguageStore();
 
   const handleStartSurvey = () => {
-    setShowDetailedSurvey(true)
-  }
+    setShowDetailedSurvey(true);
+  };
 
   const handleSurveyComplete = () => {
-    setShowDetailedSurvey(false)
-    onCloseChat() // Close chat after survey completion
-  }
+    setShowDetailedSurvey(false);
+    onCloseChat(); // Close chat after survey completion
+  };
 
   const handleSurveyClose = () => {
-    setShowDetailedSurvey(false)
-  }
+    setShowDetailedSurvey(false);
+  };
 
   if (showDetailedSurvey) {
-    return <DetailedSurvey onClose={handleSurveyClose} onComplete={handleSurveyComplete} />
+    return (
+      <DetailedSurvey
+        onClose={handleSurveyClose}
+        onComplete={handleSurveyComplete}
+      />
+    );
   }
 
   return (
@@ -44,7 +53,12 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
             <h3 className="font-semibold text-gray-900">My Kit-Ai</h3>
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </div>
-          <Button variant="ghost" size="icon" onClick={onCloseChat} className="h-6 w-6 p-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCloseChat}
+            className="h-6 w-6 p-0"
+          >
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -53,16 +67,33 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
         <div className="text-center mb-8">
           <p className="text-gray-700 text-sm leading-relaxed">
             {
-              languageCurrent && dataLanguage.survey[languageCurrent][0]
+              dataLanguage.survey[
+                Object.prototype.hasOwnProperty.call(
+                  dataLanguage.survey,
+                  languageCurrent
+                )
+                  ? (languageCurrent as keyof typeof dataLanguage.survey)
+                  : "en"
+              ][0]
             }
           </p>
         </div>
 
         {/* Buttons */}
         <div className="space-y-3">
-          <Button onClick={handleStartSurvey} className="w-full bg-[#c41230] text-white h-11">
+          <Button
+            onClick={handleStartSurvey}
+            className="w-full bg-[#c41230] text-white h-11"
+          >
             {
-              languageCurrent && dataLanguage.survey[languageCurrent][1]
+              dataLanguage.survey[
+                Object.prototype.hasOwnProperty.call(
+                  dataLanguage.survey,
+                  languageCurrent
+                )
+                  ? (languageCurrent as keyof typeof dataLanguage.survey)
+                  : "en"
+              ][1]
             }
           </Button>
 
@@ -72,7 +103,14 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
             className="w-full border-[#c41230] text-[#c41230] h-11 bg-transparent"
           >
             {
-              languageCurrent && dataLanguage.survey[languageCurrent][2]
+              dataLanguage.survey[
+                Object.prototype.hasOwnProperty.call(
+                  dataLanguage.survey,
+                  languageCurrent
+                )
+                  ? (languageCurrent as keyof typeof dataLanguage.survey)
+                  : "en"
+              ][2]
             }
           </Button>
 
@@ -82,11 +120,18 @@ export function SurveyOverlay({ onStartSurvey, onResumeChat, onCloseChat }: Surv
             className="w-full border-[#c41230] text-[#c41230] h-11 bg-transparent"
           >
             {
-              languageCurrent && dataLanguage.survey[languageCurrent][3]
+              dataLanguage.survey[
+                Object.prototype.hasOwnProperty.call(
+                  dataLanguage.survey,
+                  languageCurrent
+                )
+                  ? (languageCurrent as keyof typeof dataLanguage.survey)
+                  : "en"
+              ][3]
             }
           </Button>
         </div>
       </Card>
     </div>
-  )
+  );
 }

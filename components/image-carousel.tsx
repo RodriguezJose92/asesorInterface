@@ -134,7 +134,7 @@ export function ImageCarousel({ images, productName }: any) {
   }, [isVisible]);
 
   useEffect(() => {
-    console.log("productoInfoManuelSeLaCome");
+    
     console.log(currentProduct);
   }, [currentProduct]);
 
@@ -299,7 +299,7 @@ export function ImageCarousel({ images, productName }: any) {
       )}
 
       {/* Swiper de Preguntas Frecuentes */}
-      <div className="w-full px-4 pb-4">
+      <div className="w-full px-4 py-[0px]">
         <Swiper
           modules={[Autoplay, Pagination]}
           spaceBetween={20}
@@ -321,9 +321,9 @@ export function ImageCarousel({ images, productName }: any) {
                   e.currentTarget.remove(); // remove the clicked button from DOM
                   RealtimeService.sendMessage(item.question);
                 }}
-                className="flex w-[max-content] items-center gap-2 justify-start h-auto py-3 px-3 text-left bg-white  transition-all duration-300 group border-gray-300 rounded-lg shadow-sm"
+                className="bg-red-100 flex w-[max-content] items-center gap-2 justify-start h-auto py-3 px-3 text-lef transition-all duration-300 group rounded-full"
               >
-                <span className="text-xs font-medium leading-tight">
+                <span className=" text-red-600 text-xs font-medium leading-tight">
                   {item.question}
                 </span>
               </Button>

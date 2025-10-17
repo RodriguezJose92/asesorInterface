@@ -65,13 +65,13 @@ export function ChatMessages({
   };
 
   // 🔍 DEBUG: Monitorear props
-  useEffect(() => {
-    console.log("💬 ChatMessages props:", {
-      currentUserTranscript,
-      showUserTranscript,
-      messagesCount: messages.length,
-    });
-  }, [currentUserTranscript, showUserTranscript, messages.length]);
+  // useEffect(() => {
+  //   console.log("💬 ChatMessages props:", {
+  //     currentUserTranscript,
+  //     showUserTranscript,
+  //     messagesCount: messages.length,
+  //   });
+  // }, [currentUserTranscript, showUserTranscript, messages.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -64,6 +64,9 @@ export function ChatModal({
   if (!isOpen) return null
   return (
     <>
+
+      <WelcomeMessage status={StatusWelcolmeMessage} setter={setterStatusWelcomeMessage} />
+
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         {/* Backdrop */}
         {/* <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onMinimize} /> */}
@@ -112,10 +115,11 @@ export function ChatModal({
             <SurveyOverlay onStartSurvey={onStartSurvey} onResumeChat={onResumeChat} onCloseChat={onCloseChat} />
           )}
 
-                <ImageCarousel />
+          <ImageCarousel />
         </Card>
       </div>
-      <WelcomeMessage status={StatusWelcolmeMessage} setter={setterStatusWelcomeMessage} />
+
+      
 
     </>
   )

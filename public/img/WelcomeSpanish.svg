@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Capa_1" data-name="Capa 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 227.31 76.97">
+  <defs>
+    <style>
+      .cls-1, .cls-2, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-4 {
+        letter-spacing: -.09em;
+      }
+
+      .cls-2 {
+        font-size: 21.04px;
+      }
+
+      .cls-2, .cls-3 {
+        font-family: Avenir-Black, Avenir;
+        font-weight: 800;
+      }
+
+      .cls-5 {
+        letter-spacing: -.13em;
+      }
+
+      .cls-3 {
+        font-size: 58.69px;
+      }
+
+      .cls-6 {
+        filter: url(#drop-shadow-3);
+      }
+
+      .cls-7 {
+        fill: none;
+        filter: url(#drop-shadow-2);
+        stroke: #fff;
+        stroke-miterlimit: 10;
+        stroke-width: 1.07px;
+      }
+    </style>
+    <filter id="drop-shadow-2" x="170.7" y="-1.87" width="60" height="59" filterUnits="userSpaceOnUse">
+      <feOffset dx="0" dy="0"/>
+      <feGaussianBlur result="blur" stdDeviation="1.07"/>
+      <feFlood flood-color="#fff" flood-opacity=".8"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-3" x="181.83" y="6.27" width="38" height="40" filterUnits="userSpaceOnUse">
+      <feOffset dx=".84" dy="0"/>
+      <feGaussianBlur result="blur-2" stdDeviation="1.69"/>
+      <feFlood flood-color="#fff" flood-opacity=".5"/>
+      <feComposite in2="blur-2" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <g>
+    <circle class="cls-7" cx="200.05" cy="27.33" r="25.38"/>
+    <g class="cls-6">
+      <path class="cls-1" d="M208.14,28.8c-7.65,1.87-9.17,3.39-11.04,11.04-1.87-7.65-3.39-9.17-11.04-11.04,7.65-1.87,9.17-3.39,11.04-11.04,1.87,7.65,3.39,9.17,11.04,11.04Z"/>
+      <path class="cls-1" d="M212.15,17.76c-4.19,1.03-5.02,1.86-6.05,6.05-1.03-4.19-1.86-5.02-6.05-6.05,4.19-1.03,5.02-1.86,6.05-6.05,1.03,4.19,1.86,5.02,6.05,6.05Z"/>
+    </g>
+  </g>
+  <text class="cls-2" transform="translate(1.76 21.51)"><tspan x="0" y="0">PREGUN</tspan><tspan class="cls-4" x="89.26" y="0">T</tspan><tspan x="99.4" y="0">ALE A </tspan></text>
+  <text class="cls-3" transform="translate(-2.35 74.17)"><tspan x="0" y="0">KI</tspan><tspan class="cls-5" x="59.75" y="0">T</tspan><tspan x="85.86" y="0">-AI</tspan></text>
+</svg>

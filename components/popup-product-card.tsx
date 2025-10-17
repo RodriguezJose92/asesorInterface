@@ -38,8 +38,6 @@ export function ProductCard({
     FAQS = [],
   } = product;
 
-  console.log(product);
-
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star

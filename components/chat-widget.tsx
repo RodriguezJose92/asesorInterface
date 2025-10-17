@@ -9,31 +9,28 @@ import { MultimediaStore } from "@/utils/stores/zustandStore";
 import RealtimeService from "./services/RealtimeService";
 import { useLanguageStore } from "@/store/useLanguageStore";
 
+export let initCallAsesorAi:any = null;
+
+
 export function ChatWidget() {
-  const { languageCurrent } = useLanguageStore();
+ 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
-  const [statusWelcomeMessage, setStatusWelcomeMessage] =
-    useState<boolean>(true);
+  const [statusWelcomeMessage, setStatusWelcomeMessage] = useState<boolean>(true);
 
   // Estados para realtime
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const currentAgentMessageIdRef = useRef<string | null>(null);
 
   // 🎯 Estados para transcripción del usuario EN TIEMPO REAL
-  const [currentUserTranscript, setCurrentUserTranscript] =
-    useState<string>("");
+  const [currentUserTranscript, setCurrentUserTranscript] = useState<string>("");
   const [showUserTranscript, setShowUserTranscript] = useState<boolean>(false);
   const userTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentTranscriptRef = useRef<string>(""); // Para evitar closures obsoletos
-
   const isGreetingCommandRef = useRef<boolean>(false);
-
-
-
 
   const filterJsonFromTranscript = (text: string): string => {
     try {
@@ -89,7 +86,7 @@ export function ChatWidget() {
 
   useEffect(() => {
     if (isOpen && !isRealtimeConnected) {
-      initializeRealtimeConnection();
+      // initializeRealtimeConnection();
     }
   }, [isOpen]);
 
@@ -393,6 +390,8 @@ export function ChatWidget() {
       console.error("❌ Failed to initialize Realtime connection:", error);
     }
   };
+
+  initCallAsesorAi = initializeRealtimeConnection;
 
   /** Aqui falta enlaazar las propiedas que recibo del back */
   const handleMultimediaClick = (productName: string) => {
