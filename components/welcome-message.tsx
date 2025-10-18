@@ -94,7 +94,7 @@ export function WelcomeMessage({
   return (
     <div
       ref={divRef}
-      className="backgroundWelcomeMessage relative w-[100%] h-[100dvh] top-0 left-0 z-50 flex justify-center items-center flex-col gap-5"
+      className="backgroundWelcomeMessage relative w-[100%] h-[100dvh] top-0 left-0 flex justify-center items-center flex-col gap-5 z-50"
     >
       {currentView === 'welcome' && (
         <div className="absolute flex flex-col justify-center align-middle">

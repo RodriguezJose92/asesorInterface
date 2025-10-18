@@ -65,9 +65,9 @@ export function ChatModal({
   return (
     <>
 
-      <WelcomeMessage status={StatusWelcolmeMessage} setter={setterStatusWelcomeMessage} />
+     
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-20 flex items-center justify-center">
         {/* Backdrop */}
         {/* <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onMinimize} /> */}
 
@@ -119,7 +119,7 @@ export function ChatModal({
         </Card>
       </div>
 
-      
+      <WelcomeMessage status={StatusWelcolmeMessage} setter={setterStatusWelcomeMessage} />
 
     </>
   )
