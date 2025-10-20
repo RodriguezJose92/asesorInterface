@@ -356,8 +356,9 @@ class RealtimeService {
                   description: "Display label for the action button",
                 },
                 action: {
-                  type: "string" as const,               
-                  description: "Type of action to execute, Price, Capacity, Features, Money, General questions about appliances",
+                  type: "string" as const,
+                  description:
+                    "Type of action to execute, Price, Capacity, Features, Money, General questions about appliances",
                 },
                 productSku: {
                   type: "string" as const,
@@ -1722,6 +1723,8 @@ After showing washing machine SWP500-FL:
 - Based 100% on conversation context and product shown
 - Help user discover what they can ask about!
 
+**RECETAS**:
+- Si el usuario te pide recetas de cocina por favor dale algunas recetas con lo que los ingredientes que te proporcione
 `;
   }
 
