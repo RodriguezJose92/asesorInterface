@@ -136,8 +136,9 @@ export function ChatMessages({
                   spaceBetween={10}
                   slidesPerView={1}
                   className="w-full productSliderMudi"
-                  modules={[Autoplay, Pagination]}
+                  modules={[Autoplay, Pagination, Navigation]}
                   pagination={true}
+                  navigation={true}
                   autoplay={{ delay: 3000, disableOnInteraction: false }}
                   loop={true}
                   style={{

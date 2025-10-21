@@ -11,7 +11,6 @@ import { dataLanguage } from "@/languajes/data";
 import { useLanguageStore, LanguageCode } from "@/store/useLanguageStore";
 import "./styles/swiper-quickQuestion.css";
 import RealtimeService from "./services/RealtimeService";
-import { AutoSlider } from "./auto-slider";
 import { useRefElementsStore } from "@/store/RefElements";
 
 // Helper to ensure only supported languages are used for inputMessage
@@ -216,12 +215,10 @@ export function ChatInput({ value, onChange, onSend }: ChatInputProps) {
             onChange={(e) => onChange(e.target.value)}
             onClick={(e) => e.preventDefault()}
             placeholder={
-              isMuted
+              statusCall
+                ? dataLanguage.endCall[getSupportedLang(languageCurrent)][0]
+                : isMuted
                 ? dataLanguage.muted[getSupportedLang(languageCurrent)][0]
-                : !statusCall
-                ? dataLanguage.inputMessage[
-                    getSupportedLang(languageCurrent)
-                  ][0]
                 : dataLanguage.inputMessage[
                     getSupportedLang(languageCurrent)
                   ][1]
