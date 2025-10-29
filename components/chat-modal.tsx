@@ -63,11 +63,9 @@ export function ChatModal({
   setterStatusWelcomeMessage,
 }: ChatModalProps) {
   // Estado para el MediaModal
-  const [showMediaModal, setShowMediaModal] = useState(true);
-  const [mediaUrl, setMediaUrl] = useState(
-    "https://www.youtube.com/embed/Gpj2TneUKMM?si=QUlVoCRkr466e0OX"
-  );
-  const [mediaType, setMediaType] = useState<"image" | "video">("video");
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState("/img/banner.png");
+  const [mediaType, setMediaType] = useState<"image" | "video">("image");
 
   if (!isOpen) return null;
   return (
